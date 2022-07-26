@@ -142,7 +142,7 @@ parallelism.default: 1
 #
 # Execution checkpointing related parameters. Please refer to CheckpointConfig and ExecutionCheckpointingOptions for more details.
 #
-# execution.checkpointing.interval: 3min
+execution.checkpointing.interval: 10s
 # execution.checkpointing.externalized-checkpoint-retention: [DELETE_ON_CANCELLATION, RETAIN_ON_CANCELLATION]
 # execution.checkpointing.max-concurrent-checkpoints: 1
 # execution.checkpointing.min-pause: 0
@@ -154,7 +154,7 @@ parallelism.default: 1
 # Supported backends are 'hashmap', 'rocksdb', or the
 # <class-name-of-factory>.
 #
-# state.backend: hashmap
+state.backend: rocksdb
 
 # Directory for checkpoints filesystem, when using any of the default bundled
 # state backends.
@@ -168,7 +168,7 @@ parallelism.default: 1
 # Flag to enable/disable incremental checkpoints for backends that
 # support incremental checkpoints (like the RocksDB state backend). 
 #
-# state.backend.incremental: false
+state.backend.incremental: true
 
 # The failover strategy, i.e., how the job computation recovers from task failures.
 # Only restart tasks that may have been affected by the task failure, which typically includes

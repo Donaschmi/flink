@@ -109,6 +109,14 @@ public class TestingRestfulGateway implements RestfulGateway {
             DEFAULT_GET_SAVEPOINT_STATUS_FUNCTION =
                     (AsynchronousJobOperationKey operationKey) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
+    static final Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
+            DEFAULT_TRIGGER_RESCHEDULING_FUNCTION =
+                    (AsynchronousJobOperationKey operationKey) ->
+                            FutureUtils.completedExceptionally(new UnsupportedOperationException());
+    static final Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+            DEFAULT_GET_RESCHEDULING_STATUS_FUNCTION =
+                    (AsynchronousJobOperationKey operationKey) ->
+                            FutureUtils.completedExceptionally(new UnsupportedOperationException());
     static final TriFunction<
                     JobID,
                     OperatorID,
@@ -169,6 +177,12 @@ public class TestingRestfulGateway implements RestfulGateway {
     protected Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
             getSavepointStatusFunction;
 
+    protected Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
+            triggerReschedulingFunction;
+
+    protected Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+            getReschedulingStatusFunction;
+
     protected TriFunction<
                     JobID,
                     OperatorID,
@@ -193,6 +207,8 @@ public class TestingRestfulGateway implements RestfulGateway {
                 DEFAULT_TRIGGER_SAVEPOINT_FUNCTION,
                 DEFAULT_STOP_WITH_SAVEPOINT_FUNCTION,
                 DEFAULT_GET_SAVEPOINT_STATUS_FUNCTION,
+                DEFAULT_TRIGGER_RESCHEDULING_FUNCTION,
+                DEFAULT_GET_RESCHEDULING_STATUS_FUNCTION,
                 DEFAULT_CLUSTER_SHUTDOWN_SUPPLIER,
                 DEFAULT_DELIVER_COORDINATION_REQUEST_TO_COORDINATOR_FUNCTION);
     }
@@ -227,6 +243,10 @@ public class TestingRestfulGateway implements RestfulGateway {
                     stopWithSavepointFunction,
             Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
                     getSavepointStatusFunction,
+            Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
+                    triggerReschedulingFunction,
+            Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+                    getReschedulingStatusFunction,
             Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier,
             TriFunction<
                             JobID,
@@ -251,6 +271,8 @@ public class TestingRestfulGateway implements RestfulGateway {
         this.triggerSavepointFunction = triggerSavepointFunction;
         this.stopWithSavepointFunction = stopWithSavepointFunction;
         this.getSavepointStatusFunction = getSavepointStatusFunction;
+        this.triggerReschedulingFunction = triggerReschedulingFunction;
+        this.getReschedulingStatusFunction = getReschedulingStatusFunction;
         this.clusterShutdownSupplier = clusterShutdownSupplier;
         this.deliverCoordinationRequestToCoordinatorFunction =
                 deliverCoordinationRequestToCoordinatorFunction;
@@ -340,6 +362,18 @@ public class TestingRestfulGateway implements RestfulGateway {
     }
 
     @Override
+    public CompletableFuture<Acknowledge> triggerRescheduling(
+            AsynchronousJobOperationKey operationKey, Time timeout) {
+        return triggerReschedulingFunction.apply(operationKey);
+    }
+
+    @Override
+    public CompletableFuture<OperationResult<String>> getTriggeredReschedulingStatus(
+            AsynchronousJobOperationKey operationKey) {
+        return getReschedulingStatusFunction.apply(operationKey);
+    }
+
+    @Override
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             JobID jobId,
             OperatorID operatorId,
@@ -397,6 +431,10 @@ public class TestingRestfulGateway implements RestfulGateway {
                 stopWithSavepointFunction;
         protected Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
                 getSavepointStatusFunction;
+        protected Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
+                triggerReschedulingFunction;
+        protected Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+                getReschedulingStatusFunction;
         protected TriFunction<
                         JobID,
                         OperatorID,
@@ -419,6 +457,8 @@ public class TestingRestfulGateway implements RestfulGateway {
             triggerSavepointFunction = DEFAULT_TRIGGER_SAVEPOINT_FUNCTION;
             stopWithSavepointFunction = DEFAULT_STOP_WITH_SAVEPOINT_FUNCTION;
             getSavepointStatusFunction = DEFAULT_GET_SAVEPOINT_STATUS_FUNCTION;
+            triggerReschedulingFunction = DEFAULT_TRIGGER_RESCHEDULING_FUNCTION;
+            getReschedulingStatusFunction = DEFAULT_GET_RESCHEDULING_STATUS_FUNCTION;
             clusterShutdownSupplier = DEFAULT_CLUSTER_SHUTDOWN_SUPPLIER;
             deliverCoordinationRequestToCoordinatorFunction =
                     DEFAULT_DELIVER_COORDINATION_REQUEST_TO_COORDINATOR_FUNCTION;
@@ -529,6 +569,20 @@ public class TestingRestfulGateway implements RestfulGateway {
             return self();
         }
 
+        public T setTriggerReschedulingFunction(
+                Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
+                        triggerReschedulingFunction) {
+            this.triggerReschedulingFunction = triggerReschedulingFunction;
+            return self();
+        }
+
+        public T setGetReschedulingStatusFunction(
+                Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+                        getReschedulingStatusFunction) {
+            this.getReschedulingStatusFunction = getReschedulingStatusFunction;
+            return self();
+        }
+
         public T setDeliverCoordinationRequestToCoordinatorFunction(
                 TriFunction<
                                 JobID,
@@ -572,6 +626,8 @@ public class TestingRestfulGateway implements RestfulGateway {
                     triggerSavepointFunction,
                     stopWithSavepointFunction,
                     getSavepointStatusFunction,
+                    triggerReschedulingFunction,
+                    getReschedulingStatusFunction,
                     clusterShutdownSupplier,
                     deliverCoordinationRequestToCoordinatorFunction);
         }

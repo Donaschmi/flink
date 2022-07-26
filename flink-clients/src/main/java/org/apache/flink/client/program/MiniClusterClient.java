@@ -107,6 +107,11 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
     }
 
     @Override
+    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId) {
+        return miniCluster.triggerRescheduling(jobId);
+    }
+
+    @Override
     public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) {
         return miniCluster.disposeSavepoint(savepointPath);
     }

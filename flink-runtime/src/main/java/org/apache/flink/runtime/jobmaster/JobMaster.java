@@ -839,6 +839,11 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     @Override
+    public CompletableFuture<Acknowledge> triggerRescheduling(Time timeout) {
+        return schedulerNG.triggerRescheduling();
+    }
+
+    @Override
     public CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory,
             final SavepointFormatType formatType,

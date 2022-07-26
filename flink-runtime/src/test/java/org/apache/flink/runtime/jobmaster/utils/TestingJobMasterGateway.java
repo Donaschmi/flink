@@ -136,6 +136,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     private final TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
             triggerSavepointFunction;
 
+    @Nonnull private final Supplier<CompletableFuture<Acknowledge>> triggerReschedulingFunction;
+
     @Nonnull private final Supplier<CompletableFuture<String>> triggerCheckpointFunction;
 
     @Nonnull
@@ -239,6 +241,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             @Nonnull
                     TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
                             triggerSavepointFunction,
+            @Nonnull Supplier<CompletableFuture<Acknowledge>> triggerReschedulingFunction,
             @Nonnull Supplier<CompletableFuture<String>> triggerCheckpointFunction,
             @Nonnull
                     TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
@@ -308,6 +311,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
         this.requestJobDetailsSupplier = requestJobDetailsSupplier;
         this.requestJobSupplier = requestJobSupplier;
         this.triggerSavepointFunction = triggerSavepointFunction;
+        this.triggerReschedulingFunction = triggerReschedulingFunction;
         this.triggerCheckpointFunction = triggerCheckpointFunction;
         this.stopWithSavepointFunction = stopWithSavepointFunction;
         this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
@@ -420,6 +424,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     @Override
     public CompletableFuture<String> triggerCheckpoint(Time timeout) {
         return triggerCheckpointFunction.get();
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> triggerRescheduling(Time timeout) {
+        return triggerReschedulingFunction.get();
     }
 
     @Override

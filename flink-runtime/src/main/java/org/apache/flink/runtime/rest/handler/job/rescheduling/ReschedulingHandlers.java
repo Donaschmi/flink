@@ -16,13 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.job.savepoints;
+package org.apache.flink.runtime.rest.handler.job.rescheduling;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.dispatcher.UnknownOperationKeyException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -37,14 +35,12 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointInfo;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusHeaders;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMessageParameters;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
-import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointRequestBody;
-import org.apache.flink.runtime.rest.messages.job.savepoints.stop.StopWithSavepointTriggerHeaders;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingInfo;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingStatusHeaders;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingStatusMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingTriggerHeaders;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingTriggerMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingTriggerRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -54,7 +50,6 @@ import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.Map;
 import java.util.Optional;
@@ -62,7 +57,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 /**
- * HTTP handlers for asynchronous triggering of savepoints.
+ * HTTP handlers for asynchronous triggering of rescheduling.
  *
  * <p>Drawing savepoints is a potentially long-running operation. To avoid blocking HTTP
  * connections, savepoints must be drawn in two steps. First, an HTTP request is issued to trigger
@@ -112,23 +107,17 @@ import java.util.concurrent.CompletionException;
  * }
  * </pre>
  */
-public class SavepointHandlers {
+public class ReschedulingHandlers {
 
-    @Nullable private final String defaultSavepointDir;
-
-    public SavepointHandlers(@Nullable final String defaultSavepointDir) {
-        this.defaultSavepointDir = defaultSavepointDir;
-    }
-
-    private abstract static class SavepointHandlerBase<B extends RequestBody>
+    private abstract static class ReschedulingHandlerBase<B extends RequestBody>
             extends AbstractRestHandler<
-                    RestfulGateway, B, TriggerResponse, SavepointTriggerMessageParameters> {
+                    RestfulGateway, B, TriggerResponse, ReschedulingTriggerMessageParameters> {
 
-        SavepointHandlerBase(
-                final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                final Time timeout,
+        ReschedulingHandlerBase(
+                GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+                Time timeout,
                 Map<String, String> responseHeaders,
-                final MessageHeaders<B, TriggerResponse, SavepointTriggerMessageParameters>
+                final MessageHeaders<B, TriggerResponse, ReschedulingTriggerMessageParameters>
                         messageHeaders) {
             super(leaderRetriever, timeout, responseHeaders, messageHeaders);
         }
@@ -166,11 +155,11 @@ public class SavepointHandlers {
                 throws RestHandlerException;
     }
 
-    /** HTTP handler to stop a job with a savepoint. */
-    public class StopWithSavepointHandler
-            extends SavepointHandlerBase<StopWithSavepointRequestBody> {
+    /** HTTP handler to trigger rescheduling. */
+    public class ReschedulingTriggerHandler
+            extends ReschedulingHandlerBase<ReschedulingTriggerRequestBody> {
 
-        public StopWithSavepointHandler(
+        public ReschedulingTriggerHandler(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
                 final Time timeout,
                 final Map<String, String> responseHeaders) {
@@ -178,118 +167,62 @@ public class SavepointHandlers {
                     leaderRetriever,
                     timeout,
                     responseHeaders,
-                    StopWithSavepointTriggerHeaders.getInstance());
+                    ReschedulingTriggerHeaders.getInstance());
         }
 
         @Override
-        protected Optional<TriggerId> extractTriggerId(StopWithSavepointRequestBody request) {
+        protected Optional<TriggerId> extractTriggerId(ReschedulingTriggerRequestBody request) {
             return request.getTriggerId();
         }
 
         @Override
         protected CompletableFuture<Acknowledge> triggerOperation(
-                final HandlerRequest<StopWithSavepointRequestBody> request,
-                AsynchronousJobOperationKey operationKey,
-                final RestfulGateway gateway)
-                throws RestHandlerException {
-            final Optional<String> requestedTargetDirectory =
-                    request.getRequestBody().getTargetDirectory();
-
-            if (!requestedTargetDirectory.isPresent() && defaultSavepointDir == null) {
-                throw new RestHandlerException(
-                        String.format(
-                                "Config key [%s] is not set. Property [%s] must be provided.",
-                                CheckpointingOptions.SAVEPOINT_DIRECTORY.key(),
-                                StopWithSavepointRequestBody.FIELD_NAME_TARGET_DIRECTORY),
-                        HttpResponseStatus.BAD_REQUEST);
-            }
-
-            final TriggerSavepointMode savepointMode =
-                    request.getRequestBody().shouldDrain()
-                            ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
-                            : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT;
-            final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
-            final SavepointFormatType formatType = request.getRequestBody().getFormatType();
-            return gateway.stopWithSavepoint(
-                    operationKey, targetDirectory, formatType, savepointMode, RpcUtils.INF_TIMEOUT);
-        }
-    }
-
-    /** HTTP handler to trigger savepoints. */
-    public class SavepointTriggerHandler extends SavepointHandlerBase<SavepointTriggerRequestBody> {
-
-        public SavepointTriggerHandler(
-                final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                final Time timeout,
-                final Map<String, String> responseHeaders) {
-            super(leaderRetriever, timeout, responseHeaders, SavepointTriggerHeaders.getInstance());
-        }
-
-        @Override
-        protected Optional<TriggerId> extractTriggerId(SavepointTriggerRequestBody request) {
-            return request.getTriggerId();
-        }
-
-        @Override
-        protected CompletableFuture<Acknowledge> triggerOperation(
-                HandlerRequest<SavepointTriggerRequestBody> request,
+                HandlerRequest<ReschedulingTriggerRequestBody> request,
                 AsynchronousJobOperationKey operationKey,
                 RestfulGateway gateway)
                 throws RestHandlerException {
-            final Optional<String> requestedTargetDirectory =
-                    request.getRequestBody().getTargetDirectory();
-
-            if (!requestedTargetDirectory.isPresent() && defaultSavepointDir == null) {
-                throw new RestHandlerException(
-                        String.format(
-                                "Config key [%s] is not set. Property [%s] must be provided.",
-                                CheckpointingOptions.SAVEPOINT_DIRECTORY.key(),
-                                SavepointTriggerRequestBody.FIELD_NAME_TARGET_DIRECTORY),
-                        HttpResponseStatus.BAD_REQUEST);
-            }
-
-            final TriggerSavepointMode savepointMode =
-                    request.getRequestBody().isCancelJob()
-                            ? TriggerSavepointMode.CANCEL_WITH_SAVEPOINT
-                            : TriggerSavepointMode.SAVEPOINT;
-            final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
-            final SavepointFormatType formatType = request.getRequestBody().getFormatType();
-            return gateway.triggerSavepoint(
-                    operationKey, targetDirectory, formatType, savepointMode, RpcUtils.INF_TIMEOUT);
+            final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
+            return gateway.triggerRescheduling(jobId, RpcUtils.INF_TIMEOUT);
         }
     }
 
-    /** HTTP handler to query for the status of the savepoint. */
-    public static class SavepointStatusHandler
+    /** HTTP handler to query for the status of the rescheduling. */
+    public static class ReschedulingStatusHandler
             extends AbstractRestHandler<
                     RestfulGateway,
                     EmptyRequestBody,
-                    AsynchronousOperationResult<SavepointInfo>,
-                    SavepointStatusMessageParameters> {
+                    AsynchronousOperationResult<ReschedulingInfo>,
+                    ReschedulingStatusMessageParameters> {
 
-        public SavepointStatusHandler(
+        public ReschedulingStatusHandler(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
                 final Time timeout,
                 final Map<String, String> responseHeaders) {
-            super(leaderRetriever, timeout, responseHeaders, SavepointStatusHeaders.getInstance());
+            super(
+                    leaderRetriever,
+                    timeout,
+                    responseHeaders,
+                    ReschedulingStatusHeaders.getInstance());
         }
 
         @Override
-        protected CompletableFuture<AsynchronousOperationResult<SavepointInfo>> handleRequest(
+        protected CompletableFuture<AsynchronousOperationResult<ReschedulingInfo>> handleRequest(
                 @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
                 throws RestHandlerException {
 
             final AsynchronousJobOperationKey key = getOperationKey(request);
 
-            return gateway.getTriggeredSavepointStatus(key)
+            return gateway.getTriggeredReschedulingStatus(key)
                     .handle(
                             (operationResult, throwable) -> {
+                                return AsynchronousOperationResult.completed(
+                                        operationResultResponse());
+                                /*
                                 if (throwable == null) {
                                     switch (operationResult.getStatus()) {
                                         case SUCCESS:
                                             return AsynchronousOperationResult.completed(
-                                                    operationResultResponse(
-                                                            operationResult.getResult()));
+                                                    operationResultResponse());
                                         case FAILURE:
                                             return AsynchronousOperationResult.completed(
                                                     exceptionalOperationResultResponse(
@@ -312,8 +245,16 @@ public class SavepointHandlers {
                                                                             throwable,
                                                                             key,
                                                                             "retrieving status of")));
-                                }
+                                }*/
                             });
+        }
+
+        protected ReschedulingInfo exceptionalOperationResultResponse(Throwable throwable) {
+            return new ReschedulingInfo(new SerializedThrowable(throwable));
+        }
+
+        protected ReschedulingInfo operationResultResponse() {
+            return new ReschedulingInfo(null);
         }
 
         private static Optional<RestHandlerException> maybeCreateNotFoundError(
@@ -323,7 +264,7 @@ public class SavepointHandlers {
                 return Optional.of(
                         new RestHandlerException(
                                 String.format(
-                                        "There is no savepoint operation with triggerId=%s for job %s.",
+                                        "There is no rescheduling operation with triggerId=%s for job %s.",
                                         key.getTriggerId(), key.getJobId()),
                                 HttpResponseStatus.NOT_FOUND));
             }
@@ -336,21 +277,13 @@ public class SavepointHandlers {
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             return AsynchronousJobOperationKey.of(triggerId, jobId);
         }
-
-        protected SavepointInfo exceptionalOperationResultResponse(Throwable throwable) {
-            return new SavepointInfo(null, new SerializedThrowable(throwable));
-        }
-
-        protected SavepointInfo operationResultResponse(String operationResult) {
-            return new SavepointInfo(operationResult, null);
-        }
     }
 
     private static RestHandlerException createInternalServerError(
             Throwable throwable, AsynchronousJobOperationKey key, String errorMessageInfix) {
         return new RestHandlerException(
                 String.format(
-                        "Internal server error while %s savepoint operation with triggerId=%s for job %s.",
+                        "Internal server error while %s rescheduling operation with triggerId=%s for job %s.",
                         errorMessageInfix, key.getTriggerId(), key.getJobId()),
                 HttpResponseStatus.INTERNAL_SERVER_ERROR,
                 throwable);

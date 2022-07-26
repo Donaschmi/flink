@@ -39,28 +39,41 @@ public class DispatcherCachedOperationsHandler {
     private final CompletedOperationCache<AsynchronousJobOperationKey, String>
             savepointTriggerCache;
 
+    private final CompletedOperationCache<AsynchronousJobOperationKey, Acknowledge>
+            reschedulingTriggerCache;
+
     private final TriggerSavepointFunction triggerSavepointFunction;
 
     private final TriggerSavepointFunction stopWithSavepointFunction;
 
+    private final TriggerReschedulingFunction triggerReschedulingFunction;
+
     DispatcherCachedOperationsHandler(
             DispatcherOperationCaches operationCaches,
             TriggerSavepointFunction triggerSavepointFunction,
-            TriggerSavepointFunction stopWithSavepointFunction) {
+            TriggerSavepointFunction stopWithSavepointFunction,
+            TriggerReschedulingFunction triggerReschedulingFunction) {
         this(
                 triggerSavepointFunction,
                 stopWithSavepointFunction,
-                operationCaches.getSavepointTriggerCache());
+                triggerReschedulingFunction,
+                operationCaches.getSavepointTriggerCache(),
+                operationCaches.getReschedulingTriggerCache());
     }
 
     @VisibleForTesting
     DispatcherCachedOperationsHandler(
             TriggerSavepointFunction triggerSavepointFunction,
             TriggerSavepointFunction stopWithSavepointFunction,
-            CompletedOperationCache<AsynchronousJobOperationKey, String> savepointTriggerCache) {
+            TriggerReschedulingFunction triggerReschedulingFunction,
+            CompletedOperationCache<AsynchronousJobOperationKey, String> savepointTriggerCache,
+            CompletedOperationCache<AsynchronousJobOperationKey, Acknowledge>
+                    reschedulingTriggerCache) {
         this.triggerSavepointFunction = triggerSavepointFunction;
         this.stopWithSavepointFunction = stopWithSavepointFunction;
+        this.triggerReschedulingFunction = triggerReschedulingFunction;
         this.savepointTriggerCache = savepointTriggerCache;
+        this.reschedulingTriggerCache = reschedulingTriggerCache;
     }
 
     public CompletableFuture<Acknowledge> triggerSavepoint(
@@ -69,7 +82,7 @@ public class DispatcherCachedOperationsHandler {
             SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
             Time timeout) {
-        return registerOperationIdempotently(
+        return registerSavepointOperationIdempotently(
                 operationKey,
                 () ->
                         triggerSavepointFunction.apply(
@@ -80,13 +93,20 @@ public class DispatcherCachedOperationsHandler {
                                 timeout));
     }
 
+    public CompletableFuture<Acknowledge> triggerRescheduling(
+            AsynchronousJobOperationKey operationKey, Time timeout) {
+        return registerReschedulingOperationIdempotently(
+                operationKey,
+                () -> triggerReschedulingFunction.apply(operationKey.getJobId(), timeout));
+    }
+
     public CompletableFuture<Acknowledge> stopWithSavepoint(
             AsynchronousJobOperationKey operationKey,
             String targetDirectory,
             SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
             Time timeout) {
-        return registerOperationIdempotently(
+        return registerSavepointOperationIdempotently(
                 operationKey,
                 () ->
                         stopWithSavepointFunction.apply(
@@ -107,7 +127,7 @@ public class DispatcherCachedOperationsHandler {
                                 new UnknownOperationKeyException(operationKey)));
     }
 
-    private CompletableFuture<Acknowledge> registerOperationIdempotently(
+    private CompletableFuture<Acknowledge> registerSavepointOperationIdempotently(
             AsynchronousJobOperationKey operationKey,
             Supplier<CompletableFuture<String>> operation) {
         if (!savepointTriggerCache.containsOperation(operationKey)) {
@@ -115,5 +135,25 @@ public class DispatcherCachedOperationsHandler {
         }
 
         return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    private CompletableFuture<Acknowledge> registerReschedulingOperationIdempotently(
+            AsynchronousJobOperationKey operationKey,
+            Supplier<CompletableFuture<Acknowledge>> operation) {
+        if (!reschedulingTriggerCache.containsOperation(operationKey)) {
+            reschedulingTriggerCache.registerOngoingOperation(operationKey, operation.get());
+        }
+
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    public CompletableFuture<OperationResult<Acknowledge>> getReschedulingStatus(
+            AsynchronousJobOperationKey operationKey) {
+        return reschedulingTriggerCache
+                .get(operationKey)
+                .map(CompletableFuture::completedFuture)
+                .orElse(
+                        FutureUtils.completedExceptionally(
+                                new UnknownOperationKeyException(operationKey)));
     }
 }

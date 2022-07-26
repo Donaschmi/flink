@@ -67,6 +67,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -916,6 +917,30 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                             return path;
                         },
                         mainThreadExecutor);
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> triggerRescheduling() {
+        mainThreadExecutor.assertRunningInMainThread();
+
+        final JobID jobID = jobGraph.getJobID();
+        log.info("Triggering a manual rescheduling for job {}.", jobID);
+
+        final ExecutionGraph currentExecutionGraph = executionGraph;
+
+        final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobManagerJobMetricGroup;
+        final ExecutionGraph newExecutionGraph;
+
+        final CheckpointCoordinator checkpointCoordinator =
+                currentExecutionGraph.getCheckpointCoordinator();
+        checkpointCoordinator.stopCheckpointScheduler();
+
+        final CompletableFuture<String> savepointFuture =
+                triggerSavepoint("/tmp/flink-savepoints/1", true, SavepointFormatType.DEFAULT);
+
+        log.info(savepointFuture.getNow(""));
+
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override

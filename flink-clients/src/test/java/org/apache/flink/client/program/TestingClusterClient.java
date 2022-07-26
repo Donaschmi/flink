@@ -158,6 +158,11 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
     }
 
     @Override
+    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId) {
+        return null;
+    }
+
+    @Override
     public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
             JobID jobId, OperatorID operatorId, CoordinationRequest request) {
         throw new UnsupportedOperationException();

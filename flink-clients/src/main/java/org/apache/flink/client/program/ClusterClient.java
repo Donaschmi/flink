@@ -175,6 +175,16 @@ public interface ClusterClient<T> extends AutoCloseable {
             JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType);
 
     /**
+     * Triggers a savepoint for the job identified by the job id. The savepoint will be written to
+     * the given savepoint directory, or {@link
+     * org.apache.flink.configuration.CheckpointingOptions#SAVEPOINT_DIRECTORY} if it is null.
+     *
+     * @param jobId job id
+     * @return path future where the savepoint is located
+     */
+    CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId);
+
+    /**
      * Sends out a request to a specified coordinator and return the response.
      *
      * @param jobId specifies the job which the coordinator belongs to

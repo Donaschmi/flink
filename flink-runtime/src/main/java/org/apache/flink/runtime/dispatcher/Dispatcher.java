@@ -272,7 +272,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 new DispatcherCachedOperationsHandler(
                         dispatcherServices.getOperationCaches(),
                         this::triggerSavepointAndGetLocation,
-                        this::stopWithSavepointAndGetLocation);
+                        this::stopWithSavepointAndGetLocation,
+                        this::triggerRescheduling);
 
         this.localResourceCleaner =
                 resourceCleanerFactory.createLocalResourceCleaner(this.getMainThreadExecutor());
@@ -903,6 +904,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     @Override
+    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobID, Time timeout) {
+        return performOperationOnJobMasterGateway(
+                jobID, gateway -> gateway.triggerRescheduling(timeout));
+    }
+
+    @Override
     public CompletableFuture<Acknowledge> triggerSavepoint(
             final AsynchronousJobOperationKey operationKey,
             final String targetDirectory,
@@ -934,6 +941,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     public CompletableFuture<OperationResult<String>> getTriggeredSavepointStatus(
             AsynchronousJobOperationKey operationKey) {
         return dispatcherCachedOperationsHandler.getSavepointStatus(operationKey);
+    }
+
+    @Override
+    public CompletableFuture<OperationResult<Acknowledge>> getTriggeredReschedulingStatus(
+            AsynchronousJobOperationKey operationKey) {
+        return dispatcherCachedOperationsHandler.getReschedulingStatus(operationKey);
     }
 
     @Override

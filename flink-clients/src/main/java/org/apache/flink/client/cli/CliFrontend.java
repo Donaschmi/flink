@@ -97,6 +97,7 @@ public class CliFrontend {
     private static final String ACTION_CANCEL = "cancel";
     private static final String ACTION_STOP = "stop";
     private static final String ACTION_SAVEPOINT = "savepoint";
+    private static final String ACTION_RESCHEDULE = "reschedule";
 
     // configuration dir parameters
     private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
@@ -789,6 +790,7 @@ public class CliFrontend {
                 clusterClient.triggerSavepoint(jobId, savepointDirectory, formatType);
 
         logAndSysout("Waiting for response...");
+        LOG.debug("Hello");
 
         try {
             final String savepointPath =
@@ -825,6 +827,56 @@ public class CliFrontend {
         }
 
         logAndSysout("Savepoint '" + savepointPath + "' disposed.");
+    }
+
+    /**
+     * Executes the RESCHEDULING action.
+     *
+     * @param args Command line arguments for the rescheduling action.
+     */
+    protected void reschedule(String[] args) throws CliArgsException, FlinkException {
+        LOG.info("Running 'modify' command.");
+
+        final CommandLine commandLine =
+                CliFrontendParser.parse(customCommandLineOptions, args, false);
+
+        final JobID jobId;
+        final String[] modifyArgs = commandLine.getArgs();
+
+        if (modifyArgs.length > 0) {
+            jobId = parseJobId(modifyArgs[0]);
+        } else {
+            throw new CliArgsException("Missing JobId");
+        }
+
+        final CustomCommandLine activeCommandLine = validateAndGetActiveCommandLine(commandLine);
+
+        logAndSysout("Reschedule job " + jobId + '.');
+        runClusterAction(
+                activeCommandLine,
+                commandLine,
+                clusterClient -> triggerRescheduling(clusterClient, jobId));
+    }
+
+    /** Sends a ReschedulingTriggerMessage to the job manager. */
+    private void triggerRescheduling(ClusterClient<?> clusterClient, JobID jobId)
+            throws FlinkException {
+        logAndSysout("Triggering rescheduling for job " + jobId + '.');
+
+        CompletableFuture<Acknowledge> reschedulingFuture =
+                clusterClient.triggerRescheduling(jobId);
+
+        logAndSysout("Waiting for response...");
+
+        try {
+            reschedulingFuture.get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+
+            logAndSysout("Rescheduling completed");
+        } catch (Exception e) {
+            Throwable cause = ExceptionUtils.stripExecutionException(e);
+            throw new FlinkException(
+                    "Triggering a rescheduling for the job " + jobId + " failed.", cause);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1094,6 +1146,9 @@ public class CliFrontend {
                     return 0;
                 case ACTION_SAVEPOINT:
                     savepoint(params);
+                    return 0;
+                case ACTION_RESCHEDULE:
+                    reschedule(params);
                     return 0;
                 case "-h":
                 case "--help":

@@ -145,6 +145,10 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     stopWithSavepointAndGetLocationFunction,
             Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
                     getSavepointStatusFunction,
+            Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
+                    triggerReschedulingFunction,
+            Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+                    getReschedulingStatusFunction,
             Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction,
             TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
                     submitFailedFunction,
@@ -177,6 +181,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 triggerSavepointFunction,
                 stopWithSavepointFunction,
                 getSavepointStatusFunction,
+                triggerReschedulingFunction,
+                getReschedulingStatusFunction,
                 clusterShutdownSupplier,
                 deliverCoordinationRequestToCoordinatorFunction);
         this.submitFunction = submitFunction;
@@ -359,6 +365,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     stopWithSavepointFunction,
                     stopWithSavepointAndGetLocationFunction,
                     getSavepointStatusFunction,
+                    triggerReschedulingFunction,
+                    getReschedulingStatusFunction,
                     submitFunction,
                     submitFailedFunction,
                     listFunction,

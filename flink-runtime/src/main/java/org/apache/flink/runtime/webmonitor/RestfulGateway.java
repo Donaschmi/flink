@@ -241,4 +241,28 @@ public interface RestfulGateway extends RpcGateway {
             @RpcTimeout Time timeout) {
         throw new UnsupportedOperationException();
     }
+
+    /**
+     * Triggers a rescheduling, returning a future that completes when the operation is started.
+     *
+     * @param jobID the job I
+     * @param timeout Timeout for the asynchronous operation
+     * @return Future which is completed once the operation is triggered successfully
+     */
+    default CompletableFuture<Acknowledge> triggerRescheduling(
+            JobID jobID, @RpcTimeout Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Get the status of a savepoint triggered under the specified operation key.
+     *
+     * @param operationKey key of the operation
+     * @return Future which completes immediately with the status, or fails if no operation is
+     *     registered for the key
+     */
+    default CompletableFuture<OperationResult<Acknowledge>> getTriggeredReschedulingStatus(
+            AsynchronousJobOperationKey operationKey) {
+        throw new UnsupportedOperationException();
+    }
 }

@@ -74,6 +74,12 @@ import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationHeaders;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationRequestBody;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingInfo;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingStatusHeaders;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingStatusMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingTriggerHeaders;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingTriggerMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.rescheduling.ReschedulingTriggerRequestBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalRequest;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusMessageParameters;
@@ -499,6 +505,36 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     }
 
     @Override
+    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId) {
+        final ReschedulingTriggerHeaders reschedulingTriggerHeaders =
+                ReschedulingTriggerHeaders.getInstance();
+        final ReschedulingTriggerMessageParameters reschedulingTriggerMessageParameters =
+                reschedulingTriggerHeaders.getUnresolvedMessageParameters();
+        reschedulingTriggerMessageParameters.jobID.resolve(jobId);
+        final CompletableFuture<TriggerResponse> responseFuture =
+                sendRequest(
+                        reschedulingTriggerHeaders,
+                        reschedulingTriggerMessageParameters,
+                        new ReschedulingTriggerRequestBody(null));
+
+        LOG.debug("There");
+        return responseFuture
+                .thenCompose(
+                        reschedulingTriggerResponseBody -> {
+                            final TriggerId reschedulingTriggerId =
+                                    reschedulingTriggerResponseBody.getTriggerId();
+                            return pollReschedulingAsync(jobId, reschedulingTriggerId);
+                        })
+                .thenApply(
+                        reschedulingInfo -> {
+                            if (reschedulingInfo.getFailureCause() != null) {
+                                throw new CompletionException(reschedulingInfo.getFailureCause());
+                            }
+                            return Acknowledge.get();
+                        });
+    }
+
+    @Override
     public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
             JobID jobId, OperatorID operatorId, CoordinationRequest request) {
         ClientCoordinationHeaders headers = ClientCoordinationHeaders.getInstance();
@@ -546,7 +582,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         savepointTriggerMessageParameters,
                         new SavepointTriggerRequestBody(
                                 savepointDirectory, cancelJob, formatType, null));
-
+        LOG.debug("Here");
         return responseFuture
                 .thenCompose(
                         savepointTriggerResponseBody -> {
@@ -600,6 +636,21 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                     savepointStatusMessageParameters.jobIdPathParameter.resolve(jobId);
                     savepointStatusMessageParameters.triggerIdPathParameter.resolve(triggerID);
                     return sendRequest(savepointStatusHeaders, savepointStatusMessageParameters);
+                });
+    }
+
+    private CompletableFuture<ReschedulingInfo> pollReschedulingAsync(
+            final JobID jobId, final TriggerId triggerID) {
+        return pollResourceAsync(
+                () -> {
+                    final ReschedulingStatusHeaders reschedulingStatusHeaders =
+                            ReschedulingStatusHeaders.getInstance();
+                    final ReschedulingStatusMessageParameters reschedulingStatusMessageParameters =
+                            reschedulingStatusHeaders.getUnresolvedMessageParameters();
+                    reschedulingStatusMessageParameters.jobIdPathParameter.resolve(jobId);
+                    reschedulingStatusMessageParameters.triggerIdPathParameter.resolve(triggerID);
+                    return sendRequest(
+                            reschedulingStatusHeaders, reschedulingStatusMessageParameters);
                 });
     }
 

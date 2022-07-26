@@ -127,6 +127,8 @@ public class TestingJobMasterGatewayBuilder {
                                     targetDirectory != null
                                             ? targetDirectory
                                             : UUID.randomUUID().toString());
+    private Supplier<CompletableFuture<Acknowledge>> triggerReschedulingFunction =
+            () -> CompletableFuture.completedFuture(Acknowledge.get());
     private Supplier<CompletableFuture<String>> triggerCheckpointFunction =
             () -> CompletableFuture.completedFuture(UUID.randomUUID().toString());
     private TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
@@ -289,6 +291,12 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
+    public TestingJobMasterGatewayBuilder setTriggerReschedulingFunction(
+            Supplier<CompletableFuture<Acknowledge>> triggerReschedulingFunction) {
+        this.triggerReschedulingFunction = triggerReschedulingFunction;
+        return this;
+    }
+
     public TestingJobMasterGatewayBuilder setTriggerCheckpointFunction(
             Supplier<CompletableFuture<String>> triggerCheckpointFunction) {
         this.triggerCheckpointFunction = triggerCheckpointFunction;
@@ -411,6 +419,7 @@ public class TestingJobMasterGatewayBuilder {
                 requestJobDetailsSupplier,
                 requestJobSupplier,
                 triggerSavepointFunction,
+                triggerReschedulingFunction,
                 triggerCheckpointFunction,
                 stopWithSavepointFunction,
                 notifyAllocationFailureConsumer,

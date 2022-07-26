@@ -851,6 +851,11 @@ public class MiniCluster implements AutoCloseableAsync {
                 dispatcherGateway -> dispatcherGateway.triggerCheckpoint(jobID, rpcTimeout));
     }
 
+    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId) {
+        return runDispatcherCommand(
+                dispatcherGateway -> dispatcherGateway.triggerRescheduling(jobId, rpcTimeout));
+    }
+
     public CompletableFuture<String> stopWithSavepoint(
             JobID jobId,
             String targetDirectory,

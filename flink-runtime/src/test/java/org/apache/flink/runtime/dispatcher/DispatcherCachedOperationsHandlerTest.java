@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -52,10 +53,12 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
     private static final Time TIMEOUT = Time.minutes(10);
 
     private CompletedOperationCache<AsynchronousJobOperationKey, String> cache;
+    private CompletedOperationCache<AsynchronousJobOperationKey, Acknowledge> cache2;
     private DispatcherCachedOperationsHandler handler;
 
     private TriggerSavepointSpyFunction triggerSavepointFunction;
     private TriggerSavepointSpyFunction stopWithSavepointFunction;
+    private TriggerReschedulingFunction triggerReschedulingFunction;
 
     private CompletableFuture<String> savepointLocationFuture = new CompletableFuture<>();
     private final JobID jobID = new JobID();
@@ -73,12 +76,21 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                 TriggerSavepointSpyFunction.wrap(
                         (jobID, targetDirectory, formatType, savepointMode, timeout) ->
                                 savepointLocationFuture);
+        triggerReschedulingFunction =
+                TriggerReschedulingSpyFunction.wrap((jobID, timeout) -> new CompletableFuture<>());
         cache =
+                new CompletedOperationCache<>(
+                        RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue());
+        cache2 =
                 new CompletedOperationCache<>(
                         RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue());
         handler =
                 new DispatcherCachedOperationsHandler(
-                        triggerSavepointFunction, stopWithSavepointFunction, cache);
+                        triggerSavepointFunction,
+                        stopWithSavepointFunction,
+                        triggerReschedulingFunction,
+                        cache,
+                        cache2);
         operationKey = AsynchronousJobOperationKey.of(new TriggerId(), jobID);
     }
 
@@ -251,6 +263,38 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                         Time timeout) {
                     return wrappedFunction.apply(
                             jobID, targetDirectory, formatType, savepointMode, timeout);
+                }
+            };
+        }
+    }
+
+    private abstract static class TriggerReschedulingSpyFunction
+            implements TriggerReschedulingFunction {
+
+        private final List<Tuple1<JobID>> invocations = new ArrayList<>();
+
+        @Override
+        public CompletableFuture<Acknowledge> apply(JobID jobID, Time timeout) {
+            invocations.add(new Tuple1<>(jobID));
+            return applyWrappedFunction(jobID, timeout);
+        }
+
+        abstract CompletableFuture<Acknowledge> applyWrappedFunction(JobID jobID, Time timeout);
+
+        public List<Tuple1<JobID>> getInvocationParameters() {
+            return invocations;
+        }
+
+        public int getNumberOfInvocations() {
+            return invocations.size();
+        }
+
+        public static TriggerReschedulingSpyFunction wrap(
+                TriggerReschedulingFunction wrappedFunction) {
+            return new TriggerReschedulingSpyFunction() {
+                @Override
+                CompletableFuture<Acknowledge> applyWrappedFunction(JobID jobID, Time timeout) {
+                    return wrappedFunction.apply(jobID, timeout);
                 }
             };
         }

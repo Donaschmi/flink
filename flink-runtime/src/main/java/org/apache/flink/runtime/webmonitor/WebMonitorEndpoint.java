@@ -77,6 +77,7 @@ import org.apache.flink.runtime.rest.handler.job.metrics.JobVertexWatermarksHand
 import org.apache.flink.runtime.rest.handler.job.metrics.SubtaskMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.TaskManagerMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingHandlers;
+import org.apache.flink.runtime.rest.handler.job.rescheduling.ReschedulingHandlers;
 import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointDisposalHandlers;
 import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointHandlers;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -505,6 +506,16 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 new SavepointHandlers.SavepointStatusHandler(
                         leaderRetriever, timeout, responseHeaders);
 
+        final ReschedulingHandlers reschedulingHandlers = new ReschedulingHandlers();
+
+        final ReschedulingHandlers.ReschedulingTriggerHandler reschedulingTriggerHandler =
+                reschedulingHandlers
+                .new ReschedulingTriggerHandler(leaderRetriever, timeout, responseHeaders);
+
+        final ReschedulingHandlers.ReschedulingStatusHandler reschedulingStatusHandler =
+                new ReschedulingHandlers.ReschedulingStatusHandler(
+                        leaderRetriever, timeout, responseHeaders);
+
         final SubtaskExecutionAttemptDetailsHandler subtaskExecutionAttemptDetailsHandler =
                 new SubtaskExecutionAttemptDetailsHandler(
                         leaderRetriever,
@@ -719,6 +730,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         handlers.add(
                 Tuple2.of(stopWithSavepointHandler.getMessageHeaders(), stopWithSavepointHandler));
         handlers.add(Tuple2.of(savepointStatusHandler.getMessageHeaders(), savepointStatusHandler));
+        handlers.add(
+                Tuple2.of(
+                        reschedulingTriggerHandler.getMessageHeaders(),
+                        reschedulingTriggerHandler));
+        handlers.add(
+                Tuple2.of(
+                        reschedulingStatusHandler.getMessageHeaders(), reschedulingStatusHandler));
         handlers.add(
                 Tuple2.of(
                         subtaskExecutionAttemptDetailsHandler.getMessageHeaders(),

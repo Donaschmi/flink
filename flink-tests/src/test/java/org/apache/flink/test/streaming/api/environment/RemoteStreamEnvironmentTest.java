@@ -275,6 +275,11 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
         }
 
         @Override
+        public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId) {
+            return null;
+        }
+
+        @Override
         public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
                 JobID jobId, OperatorID operatorId, CoordinationRequest request) {
             return null;

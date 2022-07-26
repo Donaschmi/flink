@@ -244,6 +244,13 @@ public interface JobMasterGateway
     CompletableFuture<String> triggerCheckpoint(@RpcTimeout final Time timeout);
 
     /**
+     * Triggers taking a rescheduling of the executed job.
+     *
+     * @param timeout for the rpc call
+     */
+    CompletableFuture<Acknowledge> triggerRescheduling(@RpcTimeout final Time timeout);
+
+    /**
      * Stops the job with a savepoint.
      *
      * @param targetDirectory to which to write the savepoint data or null if the default savepoint
