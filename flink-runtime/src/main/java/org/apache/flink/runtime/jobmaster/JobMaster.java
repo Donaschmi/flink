@@ -840,7 +840,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(Time timeout) {
-        return schedulerNG.triggerRescheduling();
+        return schedulerNG.triggerRescheduling(
+                userCodeLoader, futureExecutor, new JobManagerJobStatusListener());
     }
 
     @Override
@@ -1359,6 +1360,10 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         private void stop() {
             running = false;
         }
+    }
+
+    public JobManagerJobStatusListener requestNewJobStatusListener() {
+        return new JobManagerJobStatusListener();
     }
 
     private class TaskManagerHeartbeatListener
