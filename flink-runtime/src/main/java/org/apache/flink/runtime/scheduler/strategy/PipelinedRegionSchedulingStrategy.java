@@ -26,9 +26,6 @@ import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.util.IterableUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,7 +43,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  * {@link SchedulingStrategy} instance which schedules tasks in granularity of pipelined regions.
  */
 public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
-    private final Logger log = LoggerFactory.getLogger(PipelinedRegionSchedulingStrategy.class);
 
     private final SchedulerOperations schedulerOperations;
 
@@ -283,7 +279,6 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
 
     private boolean areRegionVerticesAllInCreatedState(final SchedulingPipelinedRegion region) {
         for (SchedulingExecutionVertex vertex : region.getVertices()) {
-            log.debug("State is {}", vertex.getState());
             if (vertex.getState() != ExecutionState.CREATED) {
                 return false;
             }

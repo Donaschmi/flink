@@ -400,6 +400,7 @@ public class ExecutionVertex
             for (IntermediateResultPartition resultPartition : resultPartitions.values()) {
                 resultPartition.resetForNewExecution();
             }
+
         } else {
             throw new IllegalStateException(
                     "Cannot reset a vertex that is in non-terminal state " + oldState);

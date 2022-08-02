@@ -60,15 +60,12 @@ import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -105,7 +102,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -117,14 +113,12 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** Base class which can be used to implement {@link SchedulerNG}. */
 public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling {
@@ -133,7 +127,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final JobGraph jobGraph;
 
-    private ExecutionGraph executionGraph;
+    private final ExecutionGraph executionGraph;
 
     private final SchedulingTopology schedulingTopology;
 
@@ -147,7 +141,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final CheckpointIDCounter checkpointIdCounter;
 
-    private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
+    protected final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
     protected final ExecutionVertexVersioner executionVertexVersioner;
 
@@ -166,10 +160,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     private final MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings;
 
     private final DeploymentStateTimeMetrics deploymentStateTimeMetrics;
-
-    private final VertexParallelismStore vertexParallelismStore;
-
-    private final Configuration jobMasterConfiguration;
 
     public SchedulerBase(
             final Logger log,
@@ -194,8 +184,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
         this.mainThreadExecutor = mainThreadExecutor;
-        this.vertexParallelismStore = vertexParallelismStore;
-        this.jobMasterConfiguration = jobMasterConfiguration;
 
         this.checkpointsCleaner = checkpointsCleaner;
         this.completedCheckpointStore =
@@ -392,9 +380,11 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     protected void resetForNewExecutions(final Collection<ExecutionVertexID> vertices) {
-        vertices.stream()
-                .map(this::getExecutionVertex)
-                .forEach(ExecutionVertex::resetForNewExecution);
+        vertices.stream().forEach(this::resetForNewExecution);
+    }
+
+    protected void resetForNewExecution(final ExecutionVertexID executionVertexId) {
+        getExecutionVertex(executionVertexId).resetForNewExecution();
     }
 
     protected void restoreState(
@@ -548,25 +538,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     protected final void transitionToRunning() {
         executionGraph.transitionToRunning();
-    }
-
-    protected Optional<ExecutionVertexID> getExecutionVertexId(
-            final ExecutionAttemptID executionAttemptId) {
-        return Optional.ofNullable(executionGraph.getRegisteredExecutions().get(executionAttemptId))
-                .map(this::getExecutionVertexId);
-    }
-
-    protected ExecutionVertexID getExecutionVertexIdOrThrow(
-            final ExecutionAttemptID executionAttemptId) {
-        return getExecutionVertexId(executionAttemptId)
-                .orElseThrow(
-                        () ->
-                                new IllegalStateException(
-                                        "Cannot find execution " + executionAttemptId));
-    }
-
-    private ExecutionVertexID getExecutionVertexId(final Execution execution) {
-        return execution.getVertex().getID();
     }
 
     public ExecutionVertex getExecutionVertex(final ExecutionVertexID executionVertexId) {
@@ -737,51 +708,41 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     @Override
     public final boolean updateTaskExecutionState(
             final TaskExecutionStateTransition taskExecutionState) {
-        final Optional<ExecutionVertexID> executionVertexId =
-                getExecutionVertexId(taskExecutionState.getID());
 
-        boolean updateSuccess = executionGraph.updateState(taskExecutionState);
-
-        if (updateSuccess) {
-            checkState(executionVertexId.isPresent());
-
-            if (isNotifiable(executionVertexId.get(), taskExecutionState)) {
-                updateTaskExecutionStateInternal(executionVertexId.get(), taskExecutionState);
-            }
+        final ExecutionAttemptID attemptId = taskExecutionState.getID();
+        final Execution execution = executionGraph.getRegisteredExecutions().get(attemptId);
+        if (execution != null && executionGraph.updateState(taskExecutionState)) {
+            onTaskExecutionStateUpdate(execution, taskExecutionState);
             return true;
-        } else {
-            return false;
-        }
-    }
-
-    private boolean isNotifiable(
-            final ExecutionVertexID executionVertexId,
-            final TaskExecutionStateTransition taskExecutionState) {
-
-        final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
-
-        // only notifies FINISHED and FAILED states which are needed at the moment.
-        // can be refined in FLINK-14233 after the legacy scheduler is removed and
-        // the actions are factored out from ExecutionGraph.
-        switch (taskExecutionState.getExecutionState()) {
-            case FINISHED:
-            case FAILED:
-                // only notifies a state update if it's effective, namely it successfully
-                // turns the execution state to the expected value.
-                if (executionVertex.getExecutionState() == taskExecutionState.getExecutionState()) {
-                    return true;
-                }
-                break;
-            default:
-                break;
         }
 
         return false;
     }
 
-    protected void updateTaskExecutionStateInternal(
-            final ExecutionVertexID executionVertexId,
-            final TaskExecutionStateTransition taskExecutionState) {}
+    private void onTaskExecutionStateUpdate(
+            final Execution execution, final TaskExecutionStateTransition taskExecutionState) {
+
+        // only notifies a state update if it's effective, namely it successfully
+        // turns the execution state to the expected value.
+        if (execution.getState() != taskExecutionState.getExecutionState()) {
+            return;
+        }
+
+        // only notifies FINISHED and FAILED states which are needed at the moment.
+        // can be refined in FLINK-14233 after the actions are factored out from ExecutionGraph.
+        switch (taskExecutionState.getExecutionState()) {
+            case FINISHED:
+                onTaskFinished(execution);
+                break;
+            case FAILED:
+                onTaskFailed(execution);
+                break;
+        }
+    }
+
+    protected abstract void onTaskFinished(final Execution execution);
+
+    protected abstract void onTaskFailed(final Execution execution);
 
     @Override
     public SerializedInputSplit requestNextInputSplit(
@@ -802,20 +763,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         return executionGraphHandler.requestPartitionState(intermediateResultId, resultPartitionId);
     }
 
-    @Override
-    public final void notifyPartitionDataAvailable(final ResultPartitionID partitionId) {
-        mainThreadExecutor.assertRunningInMainThread();
-
-        executionGraph.notifyPartitionDataAvailable(partitionId);
-
-        notifyPartitionDataAvailableInternal(partitionId.getPartitionId());
-    }
-
-    protected void notifyPartitionDataAvailableInternal(
-            IntermediateResultPartitionID resultPartitionId) {}
-
     @VisibleForTesting
-    Iterable<RootExceptionHistoryEntry> getExceptionHistory() {
+    public Iterable<RootExceptionHistoryEntry> getExceptionHistory() {
         return exceptionHistory.toArrayList();
     }
 
@@ -926,219 +875,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                             return path;
                         },
                         mainThreadExecutor);
-    }
-
-    @Override
-    public CompletableFuture<Acknowledge> triggerRescheduling(
-            ClassLoader userCodeLoader,
-            ScheduledExecutorService scheduledExecutorService,
-            JobStatusListener jobStatusListener) {
-        mainThreadExecutor.assertRunningInMainThread();
-
-        final JobID jobID = jobGraph.getJobID();
-        log.info("Triggering a manual rescheduling for job {}.", jobID);
-
-        final ExecutionGraph currentExecutionGraph = executionGraph;
-
-        final ExecutionGraph newExecutionGraph;
-        try {
-            newExecutionGraph = createExecutionGraph(jobStatusListener);
-        } catch (Exception e) {
-            return FutureUtils.completedExceptionally(
-                    new FlinkException("Could not create rescheduled ExecutionGraph.", e));
-        }
-
-        // Disable checkpoint coordinator to suppress subsequent checkpoints
-        final CheckpointCoordinator checkpointCoordinator =
-                currentExecutionGraph.getCheckpointCoordinator();
-        checkpointCoordinator.stopCheckpointScheduler();
-
-        // Take a savepoint.
-        final CompletableFuture<String> savepointFuture =
-                triggerSavepoint(
-                        "/tmp/flink-savepoints/" + jobID, false, SavepointFormatType.DEFAULT);
-
-        final CompletableFuture<ExecutionGraph> executionGraphCompletableFuture =
-                restoreExecutionGraphFromReschedulingSavepoint(
-                                newExecutionGraph,
-                                savepointFuture,
-                                userCodeLoader,
-                                scheduledExecutorService)
-                        .handleAsync(
-                                (ExecutionGraph executionGraph, Throwable failure) -> {
-                                    if (failure != null) {
-                                        // in case that we couldn't take a savepoint or restore from
-                                        // it, let's restart the checkpoint
-                                        // coordinator and abort the rescaling operation
-                                        if (checkpointCoordinator
-                                                .isPeriodicCheckpointingConfigured()) {
-                                            checkpointCoordinator.startCheckpointScheduler();
-                                        }
-
-                                        throw new CompletionException(
-                                                ExceptionUtils.stripCompletionException(failure));
-                                    } else {
-                                        return executionGraph;
-                                    }
-                                },
-                                getMainThreadExecutor());
-
-        // Suspend the current job
-        final CompletableFuture<JobStatus> terminationFuture =
-                executionGraphCompletableFuture.thenComposeAsync(
-                        (ExecutionGraph ignored) -> {
-                            executionGraph.suspend(new FlinkException("Rescheduling job"));
-                            return executionGraph.getTerminationFuture();
-                        },
-                        getMainThreadExecutor());
-
-        final CompletableFuture<Void> suspendedFuture =
-                terminationFuture.thenAccept(
-                        (JobStatus jobStatus) -> {
-                            if (jobStatus != JobStatus.SUSPENDED) {
-                                final String msg =
-                                        String.format(
-                                                "Job %s rescheduling failed because we could not suspend the execution graph.",
-                                                jobGraph.getName());
-                                log.info(msg);
-                                throw new CompletionException(new FlinkException(msg));
-                            }
-                            log.info("All good");
-                        });
-
-        // Resume the new execution graph from the taken savepoint
-        final CompletableFuture<Acknowledge> reschedulingFuture =
-                suspendedFuture.thenCombineAsync(
-                        executionGraphCompletableFuture,
-                        (Void ignored, ExecutionGraph restoredExecutionGraph) -> {
-                            // check if the ExecutionGraph is still the same
-                            if (executionGraph == currentExecutionGraph) {
-                                assignExecutionGraph(restoredExecutionGraph);
-                                scheduleExecutionGraph(jobStatusListener);
-                                log.info("TADAM");
-                                return Acknowledge.get();
-                            } else {
-                                throw new CompletionException(
-                                        new FlinkException(
-                                                "Detected concurrent modification of ExecutionGraph. Aborting the rescheduling."));
-                            }
-                        },
-                        getMainThreadExecutor());
-
-        reschedulingFuture.whenCompleteAsync(
-                (Acknowledge ignored, Throwable throwable) -> {
-                    if (throwable != null) {
-                        // fail the newly created execution graph
-                        newExecutionGraph.failJob(
-                                new FlinkException(
-                                        String.format(
-                                                "Failed to reschedule the job %s.",
-                                                jobGraph.getJobID())),
-                                System.currentTimeMillis());
-                    }
-                },
-                getMainThreadExecutor());
-
-        return reschedulingFuture;
-    }
-
-    private ExecutionGraph createExecutionGraph(JobStatusListener jobStatusListener)
-            throws Exception {
-        final ExecutionGraph newExecutionGraph =
-                executionGraphFactory.createAndRestoreExecutionGraph(
-                        jobGraph,
-                        completedCheckpointStore,
-                        checkpointsCleaner,
-                        checkpointIdCounter,
-                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint.fromJobType(
-                                jobGraph.getJobType()),
-                        System.currentTimeMillis(),
-                        new DefaultVertexAttemptNumberStore(),
-                        vertexParallelismStore,
-                        deploymentStateTimeMetrics,
-                        log);
-
-        newExecutionGraph.setInternalTaskFailuresListener(
-                new UpdateSchedulerNgOnInternalFailuresListener(this));
-        newExecutionGraph.registerJobStatusListener(jobStatusListener);
-
-        return newExecutionGraph;
-    }
-
-    private CompletableFuture<ExecutionGraph> restoreExecutionGraphFromReschedulingSavepoint(
-            ExecutionGraph newExecutionGraph,
-            CompletableFuture<String> savepointFuture,
-            ClassLoader userCodeLoader,
-            ScheduledExecutorService scheduledExecutorService) {
-        return savepointFuture.thenApplyAsync(
-                (@Nullable String savepointPath) -> {
-                    if (savepointPath != null) {
-                        try {
-                            tryRestoreExecutionGraphFromSavepoint(
-                                    newExecutionGraph,
-                                    SavepointRestoreSettings.forPath(savepointPath, false),
-                                    userCodeLoader);
-                        } catch (Exception e) {
-                            final String message =
-                                    String.format(
-                                            "Could not restore from temporary rescheduling savepoint. This might indicate "
-                                                    + "that the savepoint %s got corrupted. Deleting this savepoint as a precaution.",
-                                            savepointPath);
-
-                            log.info(message);
-                        }
-                    }
-                    return newExecutionGraph;
-                },
-                scheduledExecutorService);
-    }
-
-    private void tryRestoreExecutionGraphFromSavepoint(
-            ExecutionGraph executionGraph,
-            SavepointRestoreSettings savepointRestoreSettings,
-            ClassLoader userCodeLoader)
-            throws Exception {
-        if (savepointRestoreSettings.restoreSavepoint()) {
-            final CheckpointCoordinator checkpointCoordinator =
-                    executionGraph.getCheckpointCoordinator();
-            if (checkpointCoordinator != null) {
-                checkpointCoordinator.restoreSavepoint(
-                        savepointRestoreSettings, executionGraph.getAllVertices(), userCodeLoader);
-            }
-        }
-    }
-
-    private void assignExecutionGraph(ExecutionGraph newExecutionGraph) {
-        mainThreadExecutor.assertRunningInMainThread();
-        checkState(executionGraph.getState().isTerminalState());
-        executionGraph = newExecutionGraph;
-    }
-
-    private void scheduleExecutionGraph(JobStatusListener jobStatusListener) {
-        // register self as job status change listener
-        executionGraph.registerJobStatusListener(jobStatusListener);
-
-        try {
-            log.info("Starting new execution graph.");
-            executionGraph.start(getMainThreadExecutor());
-            log.info("Transitioning new execution graph to running");
-
-            final CompletableFuture<Void> newSchedulingFuture;
-            final ArrayList<CompletableFuture<Void>> schedulingFutures = new ArrayList<>(16);
-            // simply take the vertices without inputs.
-            for (ExecutionVertex ev : executionGraph.getAllExecutionVertices()) {
-                final CompletableFuture<Void> schedulingJobVertexFuture =
-                        CompletableFuture.runAsync(ev::resetForNewExecution);
-
-                schedulingFutures.add(schedulingJobVertexFuture);
-            }
-            FutureUtils.waitForAll(schedulingFutures);
-            Thread.sleep(5000);
-            startScheduling();
-        } catch (Throwable t) {
-            log.error(String.valueOf(new FlinkException(t)));
-            // executionGraph.failJob(new FlinkException(t), System.currentTimeMillis());
-        }
     }
 
     @Override

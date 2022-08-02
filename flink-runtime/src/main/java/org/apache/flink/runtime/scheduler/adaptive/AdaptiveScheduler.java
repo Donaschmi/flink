@@ -632,7 +632,8 @@ public class AdaptiveScheduler
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling() {
-        return null;
+        state.tryRun(Executing.class, Executing::notifyReschedulingRequest, "reschedulingRequest");
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override

@@ -135,6 +135,16 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         }
     }
 
+    public void notifyReschedulingRequest() {
+        getLogger().info("Received rescheduling trigger.");
+        context.goToRestarting(
+                getExecutionGraph(),
+                getExecutionGraphHandler(),
+                getOperatorCoordinatorHandler(),
+                Duration.ofMillis(0L),
+                getFailures());
+    }
+
     CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory,
             boolean terminate,
