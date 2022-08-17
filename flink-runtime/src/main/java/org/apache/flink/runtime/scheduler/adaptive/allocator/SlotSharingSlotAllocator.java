@@ -30,6 +30,8 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
@@ -70,23 +72,33 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     @Override
     public ResourceCounter calculateRequiredSlots(
             Iterable<JobInformation.VertexInformation> vertices) {
-        int numTotalRequiredSlots = 0;
-        for (Integer requiredSlots : getMaxParallelismForSlotSharingGroups(vertices).values()) {
-            numTotalRequiredSlots += requiredSlots;
+        ResourceCounter resourceCounter = ResourceCounter.empty();
+        for (Map.Entry<SlotSharingGroupId, ImmutablePair<ResourceProfile, Integer>>
+                resourceProfile : getMaxParallelismForSlotSharingGroups(vertices).entrySet()) {
+            resourceCounter =
+                    resourceCounter.add(
+                            resourceProfile.getValue().getKey(),
+                            resourceProfile.getValue().getValue());
         }
-        return ResourceCounter.withResource(ResourceProfile.UNKNOWN, numTotalRequiredSlots);
+        return resourceCounter;
     }
 
-    private static Map<SlotSharingGroupId, Integer> getMaxParallelismForSlotSharingGroups(
-            Iterable<JobInformation.VertexInformation> vertices) {
-        final Map<SlotSharingGroupId, Integer> maxParallelismForSlotSharingGroups = new HashMap<>();
+    private static Map<SlotSharingGroupId, ImmutablePair<ResourceProfile, Integer>>
+            getMaxParallelismForSlotSharingGroups(
+                    Iterable<JobInformation.VertexInformation> vertices) {
+        final Map<SlotSharingGroupId, ImmutablePair<ResourceProfile, Integer>>
+                maxParallelismForSlotSharingGroups = new HashMap<>();
         for (JobInformation.VertexInformation vertex : vertices) {
             maxParallelismForSlotSharingGroups.compute(
                     vertex.getSlotSharingGroup().getSlotSharingGroupId(),
-                    (slotSharingGroupId, currentMaxParallelism) ->
-                            currentMaxParallelism == null
-                                    ? vertex.getParallelism()
-                                    : Math.max(currentMaxParallelism, vertex.getParallelism()));
+                    (slotSharingGroupId, pair) ->
+                            pair == null
+                                    ? ImmutablePair.of(
+                                            vertex.getSlotSharingGroup().getResourceProfile(),
+                                            vertex.getParallelism())
+                                    : ImmutablePair.of(
+                                            vertex.getSlotSharingGroup().getResourceProfile(),
+                                            Math.max(pair.getRight(), vertex.getParallelism())));
         }
         return maxParallelismForSlotSharingGroups;
     }
@@ -225,7 +237,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private SharedSlot reserveSharedSlot(SlotInfo slotInfo) {
         final PhysicalSlot physicalSlot =
                 reserveSlotFunction.reserveSlot(
-                        slotInfo.getAllocationId(), ResourceProfile.UNKNOWN);
+                        slotInfo.getAllocationId(), slotInfo.getResourceProfile());
 
         return new SharedSlot(
                 new SlotRequestId(),

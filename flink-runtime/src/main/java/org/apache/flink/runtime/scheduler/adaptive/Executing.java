@@ -23,11 +23,14 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
@@ -40,6 +43,8 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
@@ -137,8 +142,31 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
 
     public void notifyReschedulingRequest() {
         getLogger().info("Received rescheduling trigger.");
+        ExecutionGraph executionGraph = getExecutionGraph();
+        Optional<ExecutionJobVertex> firstKey =
+                executionGraph.getAllVertices().values().stream().findFirst();
+        ResourceProfile resourceProfile =
+                ResourceProfile.newBuilder()
+                        .setCpuCores(1)
+                        .setManagedMemoryMB(200)
+                        .setTaskHeapMemoryMB(150)
+                        .build();
+        SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+        slotSharingGroup.setResourceProfile(resourceProfile);
+        if (firstKey.isPresent()) {
+            ExecutionJobVertex key = firstKey.get();
+            key.getJobVertex().setSlotSharingGroup(slotSharingGroup);
+        }
+        for (Map.Entry<JobVertexID, ExecutionJobVertex> entry :
+                executionGraph.getAllVertices().entrySet()) {
+            getLogger()
+                    .debug(
+                            entry.getKey()
+                                    + ":"
+                                    + entry.getValue().getSlotSharingGroup().getResourceProfile());
+        }
         context.goToRestarting(
-                getExecutionGraph(),
+                executionGraph,
                 getExecutionGraphHandler(),
                 getOperatorCoordinatorHandler(),
                 Duration.ofMillis(0L),

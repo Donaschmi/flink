@@ -65,6 +65,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
@@ -632,7 +633,17 @@ public class AdaptiveScheduler
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling() {
-        state.tryRun(Executing.class, Executing::notifyReschedulingRequest, "reschedulingRequest");
+        ResourceProfile resourceProfile =
+                ResourceProfile.newBuilder()
+                        .setCpuCores(1)
+                        .setManagedMemoryMB(200)
+                        .setTaskHeapMemoryMB(150)
+                        .build();
+        final ResourceCounter resourceCounter = ResourceCounter.withResource(resourceProfile, 1);
+        state.tryRun(
+                Executing.class,
+                executing -> executing.notifyReschedulingRequest(),
+                "triggerRescheduling");
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
@@ -949,6 +960,53 @@ public class AdaptiveScheduler
                 // use the determined "available parallelism" to use
                 // the resources we have access to
                 vertex.setParallelism(vertexParallelism.getParallelism(id));
+            }
+
+            // use the originally configured max parallelism
+            // as the default for consistent runs
+            adjustedParallelismStore =
+                    computeVertexParallelismStoreForExecution(
+                            adjustedJobGraph,
+                            executionMode,
+                            (vertex) -> {
+                                VertexParallelismInformation vertexParallelismInfo =
+                                        initialParallelismStore.getParallelismInfo(vertex.getID());
+                                return vertexParallelismInfo.getMaxParallelism();
+                            });
+        } catch (Exception exception) {
+            return FutureUtils.completedExceptionally(exception);
+        }
+
+        return createExecutionGraphAndRestoreStateAsync(adjustedParallelismStore)
+                .thenApply(
+                        executionGraph ->
+                                CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
+                                        executionGraph, vertexParallelism));
+    }
+
+    private CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
+            createExecutionGraphWithSlotSharingGroupsAsync() {
+        final VertexParallelism vertexParallelism;
+        final VertexParallelismStore adjustedParallelismStore;
+
+        try {
+            vertexParallelism = determineParallelism(slotAllocator);
+            JobGraph adjustedJobGraph = jobInformation.copyJobGraph();
+            ResourceProfile resourceProfile =
+                    ResourceProfile.newBuilder()
+                            .setCpuCores(1)
+                            .setManagedMemoryMB(200)
+                            .setTaskHeapMemoryMB(150)
+                            .build();
+            SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+            slotSharingGroup.setResourceProfile(resourceProfile);
+            for (JobVertex vertex : adjustedJobGraph.getVertices()) {
+                JobVertexID id = vertex.getID();
+
+                // use the determined "available parallelism" to use
+                // the resources we have access to
+                vertex.setParallelism(vertexParallelism.getParallelism(id));
+                vertex.setSlotSharingGroup(slotSharingGroup);
             }
 
             // use the originally configured max parallelism
