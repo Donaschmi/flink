@@ -99,7 +99,7 @@ public class ExecutionJobVertex
 
     private final VertexParallelismInformation parallelismInfo;
 
-    private final SlotSharingGroup slotSharingGroup;
+    private SlotSharingGroup slotSharingGroup;
 
     @Nullable private final CoLocationGroup coLocationGroup;
 
@@ -352,6 +352,10 @@ public class ExecutionJobVertex
 
     public SlotSharingGroup getSlotSharingGroup() {
         return slotSharingGroup;
+    }
+
+    public void setSlotSharingGroup(SlotSharingGroup slotSharingGroup) {
+        this.slotSharingGroup = slotSharingGroup;
     }
 
     @Nullable

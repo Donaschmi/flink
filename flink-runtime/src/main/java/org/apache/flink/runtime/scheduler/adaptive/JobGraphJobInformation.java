@@ -69,6 +69,10 @@ public class JobGraphJobInformation implements JobInformation {
         return name;
     }
 
+    public JobGraph getJobGraph() {
+        return jobGraph;
+    }
+
     public JobCheckpointingSettings getCheckpointingSettings() {
         return jobGraph.getCheckpointingSettings();
     }

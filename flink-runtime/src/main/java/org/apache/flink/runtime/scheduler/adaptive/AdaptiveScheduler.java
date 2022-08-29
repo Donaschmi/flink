@@ -635,14 +635,19 @@ public class AdaptiveScheduler
     public CompletableFuture<Acknowledge> triggerRescheduling() {
         ResourceProfile resourceProfile =
                 ResourceProfile.newBuilder()
-                        .setCpuCores(1)
-                        .setManagedMemoryMB(200)
-                        .setTaskHeapMemoryMB(150)
+                        .setCpuCores(0.5)
+                        .setManagedMemoryMB(0)
+                        .setTaskHeapMemoryMB(300)
                         .build();
-        final ResourceCounter resourceCounter = ResourceCounter.withResource(resourceProfile, 1);
+        SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+        slotSharingGroup.setResourceProfile(resourceProfile);
+        jobInformation
+                .getJobGraph()
+                .findVertexByID(jobInformation.getVertices().iterator().next().getJobVertexID())
+                .setSlotSharingGroup(slotSharingGroup);
         state.tryRun(
                 Executing.class,
-                executing -> executing.notifyReschedulingRequest(),
+                executing -> executing.notifyReschedulingRequest(slotSharingGroup),
                 "triggerRescheduling");
         return CompletableFuture.completedFuture(Acknowledge.get());
     }

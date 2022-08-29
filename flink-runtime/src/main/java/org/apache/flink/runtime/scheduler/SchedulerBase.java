@@ -1048,4 +1048,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     JobID getJobId() {
         return jobGraph.getJobID();
     }
+
+    protected abstract void updateTaskExecutionStateInternal(
+            ExecutionVertexID executionVertexId, TaskExecutionStateTransition taskExecutionState);
 }

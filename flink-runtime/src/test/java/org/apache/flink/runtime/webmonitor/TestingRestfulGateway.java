@@ -109,11 +109,12 @@ public class TestingRestfulGateway implements RestfulGateway {
             DEFAULT_GET_SAVEPOINT_STATUS_FUNCTION =
                     (AsynchronousJobOperationKey operationKey) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
-    static final Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
+    static final Function<JobID, CompletableFuture<Acknowledge>>
             DEFAULT_TRIGGER_RESCHEDULING_FUNCTION =
-                    (AsynchronousJobOperationKey operationKey) ->
+                    (JobID operationKey) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
-    static final Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+    static final Function<
+                    AsynchronousJobOperationKey, CompletableFuture<OperationResult<Acknowledge>>>
             DEFAULT_GET_RESCHEDULING_STATUS_FUNCTION =
                     (AsynchronousJobOperationKey operationKey) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
@@ -177,10 +178,9 @@ public class TestingRestfulGateway implements RestfulGateway {
     protected Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
             getSavepointStatusFunction;
 
-    protected Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
-            triggerReschedulingFunction;
+    protected Function<JobID, CompletableFuture<Acknowledge>> triggerReschedulingFunction;
 
-    protected Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+    protected Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<Acknowledge>>>
             getReschedulingStatusFunction;
 
     protected TriFunction<
@@ -243,9 +243,8 @@ public class TestingRestfulGateway implements RestfulGateway {
                     stopWithSavepointFunction,
             Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
                     getSavepointStatusFunction,
-            Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
-                    triggerReschedulingFunction,
-            Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+            Function<JobID, CompletableFuture<Acknowledge>> triggerReschedulingFunction,
+            Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<Acknowledge>>>
                     getReschedulingStatusFunction,
             Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier,
             TriFunction<
@@ -362,13 +361,12 @@ public class TestingRestfulGateway implements RestfulGateway {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> triggerRescheduling(
-            AsynchronousJobOperationKey operationKey, Time timeout) {
-        return triggerReschedulingFunction.apply(operationKey);
+    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobID, Time timeout) {
+        return triggerReschedulingFunction.apply(jobID);
     }
 
     @Override
-    public CompletableFuture<OperationResult<String>> getTriggeredReschedulingStatus(
+    public CompletableFuture<OperationResult<Acknowledge>> getTriggeredReschedulingStatus(
             AsynchronousJobOperationKey operationKey) {
         return getReschedulingStatusFunction.apply(operationKey);
     }
@@ -431,9 +429,10 @@ public class TestingRestfulGateway implements RestfulGateway {
                 stopWithSavepointFunction;
         protected Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
                 getSavepointStatusFunction;
-        protected Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
-                triggerReschedulingFunction;
-        protected Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+        protected Function<JobID, CompletableFuture<Acknowledge>> triggerReschedulingFunction;
+        protected Function<
+                        AsynchronousJobOperationKey,
+                        CompletableFuture<OperationResult<Acknowledge>>>
                 getReschedulingStatusFunction;
         protected TriFunction<
                         JobID,
@@ -570,14 +569,15 @@ public class TestingRestfulGateway implements RestfulGateway {
         }
 
         public T setTriggerReschedulingFunction(
-                Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
-                        triggerReschedulingFunction) {
+                Function<JobID, CompletableFuture<Acknowledge>> triggerReschedulingFunction) {
             this.triggerReschedulingFunction = triggerReschedulingFunction;
             return self();
         }
 
         public T setGetReschedulingStatusFunction(
-                Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+                Function<
+                                AsynchronousJobOperationKey,
+                                CompletableFuture<OperationResult<Acknowledge>>>
                         getReschedulingStatusFunction) {
             this.getReschedulingStatusFunction = getReschedulingStatusFunction;
             return self();

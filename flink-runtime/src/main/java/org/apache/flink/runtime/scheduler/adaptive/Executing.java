@@ -23,7 +23,6 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -140,25 +139,18 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         }
     }
 
-    public void notifyReschedulingRequest() {
+    public void notifyReschedulingRequest(SlotSharingGroup slotSharingGroup) {
         getLogger().info("Received rescheduling trigger.");
         ExecutionGraph executionGraph = getExecutionGraph();
         Optional<ExecutionJobVertex> firstKey =
                 executionGraph.getAllVertices().values().stream().findFirst();
-        ResourceProfile resourceProfile =
-                ResourceProfile.newBuilder()
-                        .setCpuCores(1)
-                        .setManagedMemoryMB(200)
-                        .setTaskHeapMemoryMB(150)
-                        .build();
-        SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-        slotSharingGroup.setResourceProfile(resourceProfile);
         if (firstKey.isPresent()) {
             ExecutionJobVertex key = firstKey.get();
             key.getJobVertex().setSlotSharingGroup(slotSharingGroup);
+            key.setSlotSharingGroup(slotSharingGroup);
         }
         for (Map.Entry<JobVertexID, ExecutionJobVertex> entry :
-                executionGraph.getAllVertices().entrySet()) {
+                getExecutionGraph().getAllVertices().entrySet()) {
             getLogger()
                     .debug(
                             entry.getKey()
@@ -166,7 +158,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                                     + entry.getValue().getSlotSharingGroup().getResourceProfile());
         }
         context.goToRestarting(
-                executionGraph,
+                getExecutionGraph(),
                 getExecutionGraphHandler(),
                 getOperatorCoordinatorHandler(),
                 Duration.ofMillis(0L),

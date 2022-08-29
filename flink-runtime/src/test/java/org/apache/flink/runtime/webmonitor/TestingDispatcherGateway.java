@@ -145,9 +145,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     stopWithSavepointAndGetLocationFunction,
             Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
                     getSavepointStatusFunction,
-            Function<AsynchronousJobOperationKey, CompletableFuture<Acknowledge>>
-                    triggerReschedulingFunction,
-            Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<String>>>
+            Function<JobID, CompletableFuture<Acknowledge>> triggerReschedulingFunction,
+            Function<AsynchronousJobOperationKey, CompletableFuture<OperationResult<Acknowledge>>>
                     getReschedulingStatusFunction,
             Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction,
             TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>

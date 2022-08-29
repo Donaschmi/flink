@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
@@ -36,12 +37,13 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHa
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
@@ -263,6 +265,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     }
 
     @Override
+    protected void onTaskFinished(Execution execution) {}
+
+    @Override
+    protected void onTaskFailed(Execution execution) {}
+
+    @Override
     protected void updateTaskExecutionStateInternal(
             final ExecutionVertexID executionVertexId,
             final TaskExecutionStateTransition taskExecutionState) {
@@ -415,12 +423,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         notifyCoordinatorOfCancellation(vertex);
 
         return executionVertexOperations.cancel(vertex);
-    }
-
-    @Override
-    protected void notifyPartitionDataAvailableInternal(
-            final IntermediateResultPartitionID partitionId) {
-        schedulingStrategy.onPartitionConsumable(partitionId);
     }
 
     // ------------------------------------------------------------------------
@@ -720,6 +722,14 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 vertex.getJobVertex().getOperatorCoordinators()) {
             coordinator.subtaskFailed(vertex.getParallelSubtaskIndex(), null);
         }
+    }
+
+    @Override
+    public void notifyPartitionDataAvailable(ResultPartitionID partitionID) {}
+
+    @Override
+    public CompletableFuture<Acknowledge> triggerRescheduling() {
+        return null;
     }
 
     private class DefaultExecutionSlotAllocationContext implements ExecutionSlotAllocationContext {
