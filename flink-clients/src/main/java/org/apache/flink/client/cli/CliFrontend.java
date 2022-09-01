@@ -48,6 +48,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -539,7 +540,9 @@ public class CliFrontend {
         LOG.info("Running 'stop-with-savepoint' command.");
 
         final Options commandOptions = CliFrontendParser.getStopCommandOptions();
+        logAndSysout(String.join(" ", commandOptions.toString()));
         final CommandLine commandLine = getCommandLine(commandOptions, args, false);
+        logAndSysout(String.join(" ", commandLine.getArgs()));
 
         final StopOptions stopOptions = new StopOptions(commandLine);
         if (stopOptions.isPrintHelp()) {
@@ -790,7 +793,6 @@ public class CliFrontend {
                 clusterClient.triggerSavepoint(jobId, savepointDirectory, formatType);
 
         logAndSysout("Waiting for response...");
-        LOG.debug("Hello");
 
         try {
             final String savepointPath =
@@ -835,16 +837,19 @@ public class CliFrontend {
      * @param args Command line arguments for the rescheduling action.
      */
     protected void reschedule(String[] args) throws CliArgsException, FlinkException {
-        LOG.info("Running 'modify' command.");
+        LOG.info("Running 'reschedule' command.");
 
-        final CommandLine commandLine =
-                CliFrontendParser.parse(customCommandLineOptions, args, false);
+        final Options commandOptions = CliFrontendParser.getRescheduleCommandOptions();
+
+        final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, false);
+
+        final RescheduleOptions rescheduleOptions = new RescheduleOptions(commandLine);
+        final String[] cleanedArgs = rescheduleOptions.getArgs();
 
         final JobID jobId;
-        final String[] modifyArgs = commandLine.getArgs();
 
-        if (modifyArgs.length > 0) {
-            jobId = parseJobId(modifyArgs[0]);
+        if (cleanedArgs.length > 0) {
+            jobId = parseJobId(cleanedArgs[0]);
         } else {
             throw new CliArgsException("Missing JobId");
         }
@@ -852,26 +857,28 @@ public class CliFrontend {
         final CustomCommandLine activeCommandLine = validateAndGetActiveCommandLine(commandLine);
 
         logAndSysout("Reschedule job " + jobId + '.');
-        runClusterAction(
-                activeCommandLine,
-                commandLine,
-                clusterClient -> triggerRescheduling(clusterClient, jobId));
+
+        try {
+            final ReschedulePlanJSONMapper[] reschedulePlan = rescheduleOptions.getReschedulePlan();
+            runClusterAction(
+                    activeCommandLine,
+                    commandLine,
+                    clusterClient -> triggerRescheduling(clusterClient, jobId, null));
+        } catch (Exception e) {
+            logAndSysout(e.toString());
+        }
     }
 
     /** Sends a ReschedulingTriggerMessage to the job manager. */
-    private void triggerRescheduling(ClusterClient<?> clusterClient, JobID jobId)
+    private void triggerRescheduling(
+            ClusterClient<?> clusterClient, JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan)
             throws FlinkException {
         logAndSysout("Triggering rescheduling for job " + jobId + '.');
 
         CompletableFuture<Acknowledge> reschedulingFuture =
-                clusterClient.triggerRescheduling(jobId);
-
-        logAndSysout("Waiting for response...");
-
+                clusterClient.triggerRescheduling(jobId, reschedulePlan);
         try {
             reschedulingFuture.get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
-
-            logAndSysout("Rescheduling completed");
         } catch (Exception e) {
             Throwable cause = ExceptionUtils.stripExecutionException(e);
             throw new FlinkException(
@@ -1168,7 +1175,7 @@ public class CliFrontend {
                     System.out.printf("\"%s\" is not a valid action.\n", action);
                     System.out.println();
                     System.out.println(
-                            "Valid actions are \"run\", \"run-application\", \"list\", \"info\", \"savepoint\", \"stop\", or \"cancel\".");
+                            "Valid actions are \"run\", \"run-application\", \"list\", \"info\", \"savepoint\", \"stop\", \"reschedule\", or \"cancel\".");
                     System.out.println();
                     System.out.println(
                             "Specify the version option (-v or --version) to print Flink version.");

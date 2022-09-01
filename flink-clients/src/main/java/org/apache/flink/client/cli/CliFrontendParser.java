@@ -203,6 +203,13 @@ public class CliFrontendParser {
                     false,
                     "Send MAX_WATERMARK before taking the savepoint and stopping the pipelne.");
 
+    public static final Option RESCHEDULE_PLAN_PATH_OPTION =
+            new Option(
+                    "p",
+                    "reschedulePlanPath",
+                    true,
+                    "Path to the rescheduling plan containing fine-grain scheduling of operators.");
+
     public static final Option PY_OPTION =
             new Option(
                     "py",
@@ -328,6 +335,10 @@ public class CliFrontendParser {
 
         STOP_AND_DRAIN.setRequired(false);
 
+        RESCHEDULE_PLAN_PATH_OPTION.setRequired(false);
+        RESCHEDULE_PLAN_PATH_OPTION.setArgName("reschedulePlanPath");
+        RESCHEDULE_PLAN_PATH_OPTION.setOptionalArg(true);
+
         PY_OPTION.setRequired(false);
         PY_OPTION.setArgName("pythonFile");
 
@@ -429,6 +440,10 @@ public class CliFrontendParser {
                 .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
+    static Options getRescheduleCommandOptions() {
+        return buildGeneralOptions(new Options()).addOption(RESCHEDULE_PLAN_PATH_OPTION);
+    }
+
     // --------------------------------------------------------------------------------------------
     //  Help
     // --------------------------------------------------------------------------------------------
@@ -469,6 +484,10 @@ public class CliFrontendParser {
                 .addOption(JAR_OPTION);
     }
 
+    private static Options getRescheduleOptionsWithoutDeprecatedOptions(Options options) {
+        return options.addOption(RESCHEDULE_PLAN_PATH_OPTION);
+    }
+
     /** Prints the help for the client. */
     public static void printHelp(Collection<CustomCommandLine> customCommandLines) {
         System.out.println("./flink <ACTION> [OPTIONS] [ARGUMENTS]");
@@ -482,6 +501,7 @@ public class CliFrontendParser {
         printHelpForStop(customCommandLines);
         printHelpForCancel(customCommandLines);
         printHelpForSavepoint(customCommandLines);
+        printHelpForReschedule(customCommandLines);
 
         System.out.println();
     }
@@ -592,6 +612,21 @@ public class CliFrontendParser {
         System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID> [<target directory>]");
         formatter.setSyntaxPrefix("  \"savepoint\" action options:");
         formatter.printHelp(" ", getSavepointOptionsWithoutDeprecatedOptions(new Options()));
+
+        printCustomCliOptions(customCommandLines, formatter, false);
+
+        System.out.println();
+    }
+
+    public static void printHelpForReschedule(Collection<CustomCommandLine> customCommandLines) {
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.setLeftPadding(5);
+        formatter.setWidth(80);
+
+        System.out.println("\nAction \"reschedule\" triggers rescheduling for a running job.");
+        System.out.println("\n  Syntax: reschedule [OPTIONS] <Job ID>");
+        formatter.setSyntaxPrefix("  \"reschedule\" action options:");
+        formatter.printHelp(" ", getRescheduleOptionsWithoutDeprecatedOptions(new Options()));
 
         printCustomCliOptions(customCommandLines, formatter, false);
 

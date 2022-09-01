@@ -30,6 +30,7 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -839,8 +840,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public CompletableFuture<Acknowledge> triggerRescheduling(Time timeout) {
-        return schedulerNG.triggerRescheduling();
+    public CompletableFuture<Acknowledge> triggerRescheduling(
+            ReschedulePlanJSONMapper[] reschedulePlan, Time timeout) {
+        return schedulerNG.triggerRescheduling(reschedulePlan);
     }
 
     @Override

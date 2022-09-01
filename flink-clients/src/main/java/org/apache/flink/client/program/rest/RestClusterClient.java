@@ -34,6 +34,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServicesFactory;
 import org.apache.flink.runtime.highavailability.DefaultClientHighAvailabilityServicesFactory;
@@ -505,7 +506,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId) {
+    public CompletableFuture<Acknowledge> triggerRescheduling(
+            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan) {
         final ReschedulingTriggerHeaders reschedulingTriggerHeaders =
                 ReschedulingTriggerHeaders.getInstance();
         final ReschedulingTriggerMessageParameters reschedulingTriggerMessageParameters =
@@ -515,9 +517,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 sendRequest(
                         reschedulingTriggerHeaders,
                         reschedulingTriggerMessageParameters,
-                        new ReschedulingTriggerRequestBody(null));
+                        new ReschedulingTriggerRequestBody(null, reschedulePlan));
 
-        LOG.debug("There");
         return responseFuture
                 .thenCompose(
                         reschedulingTriggerResponseBody -> {

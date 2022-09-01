@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
@@ -94,10 +95,14 @@ public class DispatcherCachedOperationsHandler {
     }
 
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            AsynchronousJobOperationKey operationKey, Time timeout) {
+            AsynchronousJobOperationKey operationKey,
+            ReschedulePlanJSONMapper[] reschedulePlan,
+            Time timeout) {
         return registerReschedulingOperationIdempotently(
                 operationKey,
-                () -> triggerReschedulingFunction.apply(operationKey.getJobId(), timeout));
+                () ->
+                        triggerReschedulingFunction.apply(
+                                operationKey.getJobId(), reschedulePlan, timeout));
     }
 
     public CompletableFuture<Acknowledge> stopWithSavepoint(

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.job.rescheduling;
 
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 
@@ -34,18 +35,32 @@ public class ReschedulingTriggerRequestBody implements RequestBody {
 
     public static final String FIELD_NAME_TRIGGER_ID = "triggerId";
 
+    public static final String FIELD_NAME_RESCHEDULE_PLAN = "reschedulePlan";
+
     @JsonProperty(FIELD_NAME_TRIGGER_ID)
     @Nullable
     private final TriggerId triggerId;
 
+    @JsonProperty(FIELD_NAME_RESCHEDULE_PLAN)
+    @Nullable
+    private final ReschedulePlanJSONMapper[] reschedulePlan;
+
     @JsonCreator
     public ReschedulingTriggerRequestBody(
-            @Nullable @JsonProperty(FIELD_NAME_TRIGGER_ID) TriggerId triggerId) {
+            @Nullable @JsonProperty(FIELD_NAME_TRIGGER_ID) TriggerId triggerId,
+            @Nullable @JsonProperty(FIELD_NAME_RESCHEDULE_PLAN)
+                    ReschedulePlanJSONMapper[] reschedulePlan) {
         this.triggerId = triggerId;
+        this.reschedulePlan = reschedulePlan;
     }
 
     @JsonIgnore
     public Optional<TriggerId> getTriggerId() {
         return Optional.ofNullable(triggerId);
+    }
+
+    @JsonIgnore
+    public ReschedulePlanJSONMapper[] getReschedulePlan() {
+        return reschedulePlan;
     }
 }

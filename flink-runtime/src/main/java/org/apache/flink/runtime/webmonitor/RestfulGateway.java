@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -246,11 +247,12 @@ public interface RestfulGateway extends RpcGateway {
      * Triggers a rescheduling, returning a future that completes when the operation is started.
      *
      * @param jobID the job I
+     * @param reschedulePlan the reschedule plan
      * @param timeout Timeout for the asynchronous operation
      * @return Future which is completed once the operation is triggered successfully
      */
     default CompletableFuture<Acknowledge> triggerRescheduling(
-            JobID jobID, @RpcTimeout Time timeout) {
+            JobID jobID, ReschedulePlanJSONMapper[] reschedulePlan, @RpcTimeout Time timeout) {
         throw new UnsupportedOperationException();
     }
 

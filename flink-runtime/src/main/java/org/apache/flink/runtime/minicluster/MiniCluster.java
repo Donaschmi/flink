@@ -39,6 +39,7 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -851,9 +852,11 @@ public class MiniCluster implements AutoCloseableAsync {
                 dispatcherGateway -> dispatcherGateway.triggerCheckpoint(jobID, rpcTimeout));
     }
 
-    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId) {
+    public CompletableFuture<Acknowledge> triggerRescheduling(
+            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan) {
         return runDispatcherCommand(
-                dispatcherGateway -> dispatcherGateway.triggerRescheduling(jobId, rpcTimeout));
+                dispatcherGateway ->
+                        dispatcherGateway.triggerRescheduling(jobId, reschedulePlan, rpcTimeout));
     }
 
     public CompletableFuture<String> stopWithSavepoint(

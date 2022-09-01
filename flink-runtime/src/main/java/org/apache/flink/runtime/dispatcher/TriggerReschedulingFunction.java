@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.messages.Acknowledge;
 
 import java.util.concurrent.CompletableFuture;
@@ -30,5 +31,6 @@ import java.util.concurrent.CompletableFuture;
  */
 @FunctionalInterface
 public interface TriggerReschedulingFunction {
-    CompletableFuture<Acknowledge> apply(JobID jobId, Time timeout);
+    CompletableFuture<Acknowledge> apply(
+            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan, Time timeout);
 }

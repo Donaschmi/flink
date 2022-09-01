@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -158,7 +159,8 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId) {
+    public CompletableFuture<Acknowledge> triggerRescheduling(
+            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan) {
         return null;
     }
 

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job.rescheduling;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.dispatcher.UnknownOperationKeyException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -181,8 +182,10 @@ public class ReschedulingHandlers {
                 AsynchronousJobOperationKey operationKey,
                 RestfulGateway gateway)
                 throws RestHandlerException {
+            final ReschedulePlanJSONMapper[] reschedulePlan =
+                    request.getRequestBody().getReschedulePlan();
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-            return gateway.triggerRescheduling(jobId, RpcUtils.INF_TIMEOUT);
+            return gateway.triggerRescheduling(jobId, reschedulePlan, RpcUtils.INF_TIMEOUT);
         }
     }
 

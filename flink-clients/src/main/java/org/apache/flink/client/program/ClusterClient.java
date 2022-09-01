@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -180,9 +181,11 @@ public interface ClusterClient<T> extends AutoCloseable {
      * org.apache.flink.configuration.CheckpointingOptions#SAVEPOINT_DIRECTORY} if it is null.
      *
      * @param jobId job id
+     * @param reschedulePlan JSON plan to reschedule job
      * @return path future where the savepoint is located
      */
-    CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId);
+    CompletableFuture<Acknowledge> triggerRescheduling(
+            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan);
 
     /**
      * Sends out a request to a specified coordinator and return the response.

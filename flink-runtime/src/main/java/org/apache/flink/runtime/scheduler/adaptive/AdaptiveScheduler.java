@@ -40,6 +40,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
@@ -632,7 +633,8 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public CompletableFuture<Acknowledge> triggerRescheduling() {
+    public CompletableFuture<Acknowledge> triggerRescheduling(
+            ReschedulePlanJSONMapper[] reschedulePlan) {
         ResourceProfile resourceProfile =
                 ResourceProfile.newBuilder()
                         .setCpuCores(0.5)

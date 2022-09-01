@@ -25,6 +25,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -246,9 +247,11 @@ public interface JobMasterGateway
     /**
      * Triggers taking a rescheduling of the executed job.
      *
+     * @param reschedulePlan the reschedulePlan
      * @param timeout for the rpc call
      */
-    CompletableFuture<Acknowledge> triggerRescheduling(@RpcTimeout final Time timeout);
+    CompletableFuture<Acknowledge> triggerRescheduling(
+            ReschedulePlanJSONMapper[] reschedulePlan, @RpcTimeout final Time timeout);
 
     /**
      * Stops the job with a savepoint.

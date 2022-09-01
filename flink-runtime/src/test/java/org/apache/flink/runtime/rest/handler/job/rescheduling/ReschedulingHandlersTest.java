@@ -174,7 +174,7 @@ public class ReschedulingHandlersTest extends TestLogger {
     private static HandlerRequest<ReschedulingTriggerRequestBody> triggerReschedulingRequest(
             @Nullable TriggerId triggerId) throws HandlerRequestException {
         return HandlerRequest.resolveParametersAndCreate(
-                new ReschedulingTriggerRequestBody(triggerId),
+                new ReschedulingTriggerRequestBody(triggerId, null),
                 new ReschedulingTriggerMessageParameters(),
                 Collections.singletonMap(JobIDPathParameter.KEY, JOB_ID.toString()),
                 Collections.emptyMap(),

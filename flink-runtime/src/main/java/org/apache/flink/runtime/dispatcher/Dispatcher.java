@@ -36,6 +36,7 @@ import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.DispatcherResourceCleanerFactory;
@@ -904,9 +905,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     @Override
-    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobID, Time timeout) {
+    public CompletableFuture<Acknowledge> triggerRescheduling(
+            JobID jobID, ReschedulePlanJSONMapper[] reschedulePlan, Time timeout) {
         return performOperationOnJobMasterGateway(
-                jobID, gateway -> gateway.triggerRescheduling(timeout));
+                jobID, gateway -> gateway.triggerRescheduling(reschedulePlan, timeout));
     }
 
     @Override

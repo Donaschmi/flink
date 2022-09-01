@@ -25,6 +25,7 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -107,8 +108,9 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
     }
 
     @Override
-    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId) {
-        return miniCluster.triggerRescheduling(jobId);
+    public CompletableFuture<Acknowledge> triggerRescheduling(
+            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan) {
+        return miniCluster.triggerRescheduling(jobId, reschedulePlan);
     }
 
     @Override
