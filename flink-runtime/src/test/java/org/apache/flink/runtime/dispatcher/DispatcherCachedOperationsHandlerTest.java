@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
@@ -77,7 +78,8 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                         (jobID, targetDirectory, formatType, savepointMode, timeout) ->
                                 savepointLocationFuture);
         triggerReschedulingFunction =
-                TriggerReschedulingSpyFunction.wrap((jobID, timeout) -> new CompletableFuture<>());
+                TriggerReschedulingSpyFunction.wrap(
+                        (jobID, schedulePlan, timeout) -> new CompletableFuture<>());
         cache =
                 new CompletedOperationCache<>(
                         RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue());
@@ -274,7 +276,8 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
         private final List<Tuple1<JobID>> invocations = new ArrayList<>();
 
         @Override
-        public CompletableFuture<Acknowledge> apply(JobID jobID, Time timeout) {
+        public CompletableFuture<Acknowledge> apply(
+                JobID jobID, ReschedulePlanJSONMapper[] reschedulePlan, Time timeout) {
             invocations.add(new Tuple1<>(jobID));
             return applyWrappedFunction(jobID, timeout);
         }
@@ -294,7 +297,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
             return new TriggerReschedulingSpyFunction() {
                 @Override
                 CompletableFuture<Acknowledge> applyWrappedFunction(JobID jobID, Time timeout) {
-                    return wrappedFunction.apply(jobID, timeout);
+                    return wrappedFunction.apply(jobID, null, timeout);
                 }
             };
         }

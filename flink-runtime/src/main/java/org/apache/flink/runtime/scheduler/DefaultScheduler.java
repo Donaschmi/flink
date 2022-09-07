@@ -25,6 +25,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -42,6 +44,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
@@ -728,7 +731,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     public void notifyPartitionDataAvailable(ResultPartitionID partitionID) {}
 
     @Override
-    public CompletableFuture<Acknowledge> triggerRescheduling() {
+    public CompletableFuture<Acknowledge> triggerRescheduling(
+            ReschedulePlanJSONMapper[] reschedulePlan,
+            JobMasterGateway gateway,
+            Set<ResourceID> resourceIDS) {
         return null;
     }
 

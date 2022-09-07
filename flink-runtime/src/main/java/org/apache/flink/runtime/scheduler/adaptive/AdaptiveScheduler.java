@@ -41,6 +41,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
@@ -67,6 +68,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
@@ -97,6 +99,7 @@ import org.apache.flink.runtime.scheduler.SchedulerUtils;
 import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
@@ -127,9 +130,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -161,6 +167,7 @@ public class AdaptiveScheduler
                 CreatingExecutionGraph.Context,
                 Executing.Context,
                 Restarting.Context,
+                Rescheduling.Context,
                 Failing.Context,
                 Finished.Context,
                 StopWithSavepoint.Context {
@@ -634,24 +641,59 @@ public class AdaptiveScheduler
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            ReschedulePlanJSONMapper[] reschedulePlan) {
-        ResourceProfile resourceProfile =
-                ResourceProfile.newBuilder()
-                        .setCpuCores(0.5)
-                        .setManagedMemoryMB(0)
-                        .setTaskHeapMemoryMB(300)
-                        .build();
-        SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-        slotSharingGroup.setResourceProfile(resourceProfile);
-        jobInformation
-                .getJobGraph()
-                .findVertexByID(jobInformation.getVertices().iterator().next().getJobVertexID())
-                .setSlotSharingGroup(slotSharingGroup);
+            ReschedulePlanJSONMapper[] reschedulePlan,
+            JobMasterGateway gateway,
+            Set<ResourceID> resourceIDS) {
+        Map<JobVertexID, SlotSharingGroup> reschedulePlanMapped =
+                convertJSONMapperToMap(reschedulePlan);
+
+        declarativeSlotPool
+                .getAllSlotsInformation()
+                .iterator()
+                .forEachRemaining(
+                        (allocation) -> {
+                            gateway.failSlot(
+                                    resourceIDS.iterator().next(),
+                                    allocation.getAllocationId(),
+                                    new FlinkException("Failing slot manually"));
+                        });
+
+        // declarativeSlotPool.releaseSlot(registeredSlot, new FlinkException("releasing slot"));
+        for (JobInformation.VertexInformation vertex : jobInformation.getVertices()) {
+            SlotSharingGroup slotSharingGroup = reschedulePlanMapped.get(vertex.getJobVertexID());
+            LOG.debug(vertex.getJobVertexID().toHexString());
+            if (slotSharingGroup != null) {
+                LOG.debug(slotSharingGroup.getResourceProfile().toString());
+                jobInformation
+                        .getJobGraph()
+                        .findVertexByID(vertex.getJobVertexID())
+                        .setSlotSharingGroup(slotSharingGroup);
+            }
+        }
+
         state.tryRun(
                 Executing.class,
-                executing -> executing.notifyReschedulingRequest(slotSharingGroup),
+                executing -> executing.notifyReschedulingRequest(reschedulePlanMapped),
                 "triggerRescheduling");
         return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    private static Map<JobVertexID, SlotSharingGroup> convertJSONMapperToMap(
+            ReschedulePlanJSONMapper[] plans) {
+        Map<JobVertexID, SlotSharingGroup> map = new HashMap<>();
+        for (ReschedulePlanJSONMapper plan : plans) {
+            SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+            slotSharingGroup.setResourceProfile(
+                    ResourceProfile.newBuilder()
+                            .setCpuCores(plan.getCPU())
+                            .setTaskHeapMemoryMB(plan.getHeap())
+                            .setManagedMemoryMB(plan.getManaged())
+                            .setNetworkMemoryMB(plan.getNetwork())
+                            .setTaskOffHeapMemoryMB(plan.getOffHeap())
+                            .build());
+            map.put(JobVertexID.fromHexString(plan.getVertexID()), slotSharingGroup);
+        }
+        return map;
     }
 
     @Override
@@ -891,6 +933,28 @@ public class AdaptiveScheduler
                         userCodeClassLoader,
                         failureCollection));
         numRestarts++;
+    }
+
+    @Override
+    public void goToRescheduling(
+            ExecutionGraph executionGraph,
+            ExecutionGraphHandler executionGraphHandler,
+            OperatorCoordinatorHandler operatorCoordinatorHandler,
+            Map<JobVertexID, SlotSharingGroup> reschedulingPlan,
+            Duration backoffTime,
+            List<ExceptionHistoryEntry> failureCollection) {
+
+        transitionToState(
+                new Rescheduling.Factory(
+                        this,
+                        executionGraph,
+                        executionGraphHandler,
+                        operatorCoordinatorHandler,
+                        reschedulingPlan,
+                        LOG,
+                        backoffTime,
+                        userCodeClassLoader,
+                        failureCollection));
     }
 
     @Override

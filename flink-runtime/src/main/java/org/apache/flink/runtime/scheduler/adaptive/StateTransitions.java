@@ -21,12 +21,15 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -132,6 +135,30 @@ public interface StateTransitions {
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
+                Duration backoffTime,
+                List<ExceptionHistoryEntry> failureCollection);
+    }
+
+    /** Interface covering transition to the {@link Restarting} state. */
+    interface ToRescheduling extends StateTransitions {
+
+        /**
+         * Transitions into the {@link Rescheduling} state.
+         *
+         * @param executionGraph executionGraph to pass to the {@link Rescheduling} state
+         * @param executionGraphHandler executionGraphHandler to pass to the {@link Rescheduling}
+         *     state
+         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pas to the {@link
+         *     Rescheduling} state
+         * @param backoffTime backoffTime to wait before transitioning to the {@link Rescheduling}
+         *     state
+         * @param failureCollection collection of failures that are propagated
+         */
+        void goToRescheduling(
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                Map<JobVertexID, SlotSharingGroup> reschedulingPlan,
                 Duration backoffTime,
                 List<ExceptionHistoryEntry> failureCollection);
     }

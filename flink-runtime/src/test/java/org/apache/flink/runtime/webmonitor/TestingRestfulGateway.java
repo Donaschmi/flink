@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -361,7 +362,8 @@ public class TestingRestfulGateway implements RestfulGateway {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobID, Time timeout) {
+    public CompletableFuture<Acknowledge> triggerRescheduling(
+            JobID jobID, ReschedulePlanJSONMapper[] reschedulePlanJSONMappers, Time timeout) {
         return triggerReschedulingFunction.apply(jobID);
     }
 

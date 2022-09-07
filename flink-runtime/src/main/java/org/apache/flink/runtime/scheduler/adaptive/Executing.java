@@ -43,7 +43,6 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
@@ -139,28 +138,14 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         }
     }
 
-    public void notifyReschedulingRequest(SlotSharingGroup slotSharingGroup) {
+    public void notifyReschedulingRequest(Map<JobVertexID, SlotSharingGroup> reschedulePlanMapped) {
         getLogger().info("Received rescheduling trigger.");
-        ExecutionGraph executionGraph = getExecutionGraph();
-        Optional<ExecutionJobVertex> firstKey =
-                executionGraph.getAllVertices().values().stream().findFirst();
-        if (firstKey.isPresent()) {
-            ExecutionJobVertex key = firstKey.get();
-            key.getJobVertex().setSlotSharingGroup(slotSharingGroup);
-            key.setSlotSharingGroup(slotSharingGroup);
-        }
-        for (Map.Entry<JobVertexID, ExecutionJobVertex> entry :
-                getExecutionGraph().getAllVertices().entrySet()) {
-            getLogger()
-                    .debug(
-                            entry.getKey()
-                                    + ":"
-                                    + entry.getValue().getSlotSharingGroup().getResourceProfile());
-        }
-        context.goToRestarting(
+
+        context.goToRescheduling(
                 getExecutionGraph(),
                 getExecutionGraphHandler(),
                 getOperatorCoordinatorHandler(),
+                reschedulePlanMapped,
                 Duration.ofMillis(0L),
                 getFailures());
     }
@@ -203,6 +188,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                     StateTransitions.ToCancelling,
                     StateTransitions.ToFailing,
                     StateTransitions.ToRestarting,
+                    StateTransitions.ToRescheduling,
                     StateTransitions.ToStopWithSavepoint {
 
         /**

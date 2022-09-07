@@ -863,7 +863,7 @@ public class CliFrontend {
             runClusterAction(
                     activeCommandLine,
                     commandLine,
-                    clusterClient -> triggerRescheduling(clusterClient, jobId, null));
+                    clusterClient -> triggerRescheduling(clusterClient, jobId, reschedulePlan));
         } catch (Exception e) {
             logAndSysout(e.toString());
         }
