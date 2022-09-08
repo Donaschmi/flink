@@ -647,6 +647,17 @@ public class AdaptiveScheduler
         Map<JobVertexID, SlotSharingGroup> reschedulePlanMapped =
                 convertJSONMapperToMap(reschedulePlan);
 
+        for (JobInformation.VertexInformation vertex : jobInformation.getVertices()) {
+            LOG.debug(vertex.getJobVertexID().toHexString());
+            LOG.debug(
+                    jobInformation
+                            .getJobGraph()
+                            .findVertexByID(vertex.getJobVertexID())
+                            .getSlotSharingGroup()
+                            .getResourceProfile()
+                            .toString());
+        }
+
         declarativeSlotPool
                 .getAllSlotsInformation()
                 .iterator()
@@ -657,8 +668,6 @@ public class AdaptiveScheduler
                                     allocation.getAllocationId(),
                                     new FlinkException("Failing slot manually"));
                         });
-
-        // declarativeSlotPool.releaseSlot(registeredSlot, new FlinkException("releasing slot"));
         for (JobInformation.VertexInformation vertex : jobInformation.getVertices()) {
             SlotSharingGroup slotSharingGroup = reschedulePlanMapped.get(vertex.getJobVertexID());
             LOG.debug(vertex.getJobVertexID().toHexString());
@@ -670,7 +679,6 @@ public class AdaptiveScheduler
                         .setSlotSharingGroup(slotSharingGroup);
             }
         }
-
         state.tryRun(
                 Executing.class,
                 executing -> executing.notifyReschedulingRequest(reschedulePlanMapped),
@@ -678,7 +686,8 @@ public class AdaptiveScheduler
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
-    private static Map<JobVertexID, SlotSharingGroup> convertJSONMapperToMap(
+    @VisibleForTesting
+    static Map<JobVertexID, SlotSharingGroup> convertJSONMapperToMap(
             ReschedulePlanJSONMapper[] plans) {
         Map<JobVertexID, SlotSharingGroup> map = new HashMap<>();
         for (ReschedulePlanJSONMapper plan : plans) {
@@ -1027,6 +1036,15 @@ public class AdaptiveScheduler
 
             for (JobVertex vertex : adjustedJobGraph.getVertices()) {
                 JobVertexID id = vertex.getID();
+                LOG.debug("CreateExecution");
+                LOG.debug(id.toHexString());
+                LOG.debug(
+                        jobInformation
+                                .getJobGraph()
+                                .findVertexByID(id)
+                                .getSlotSharingGroup()
+                                .getResourceProfile()
+                                .toString());
 
                 // use the determined "available parallelism" to use
                 // the resources we have access to
@@ -1131,6 +1149,7 @@ public class AdaptiveScheduler
             ExecutionGraph executionGraph, ReservedSlots reservedSlots) {
         for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
             final LogicalSlot assignedSlot = reservedSlots.getSlotFor(executionVertex.getID());
+            LOG.debug(executionVertex.getID().toString() + " : " + assignedSlot.getAllocationId());
             final CompletableFuture<Void> registrationFuture =
                     executionVertex
                             .getCurrentExecutionAttempt()

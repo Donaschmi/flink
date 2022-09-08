@@ -92,6 +92,9 @@ public class CreatingExecutionGraph implements State {
         } else {
             for (ExecutionVertex vertex :
                     executionGraphWithVertexParallelism.executionGraph.getAllExecutionVertices()) {
+                logger.debug("Handle");
+                logger.debug(vertex.getJobvertexId().toHexString());
+                logger.debug(vertex.getResourceProfile().toString());
                 vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
             }
 

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -125,7 +126,19 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                     slotSharingGroup.getJobVertexIds().stream()
                             .map(jobInformation::getVertexInformation)
                             .collect(Collectors.toList());
-
+            containedJobVertices.forEach(
+                    info ->
+                            LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
+                                    .debug(
+                                            "test: "
+                                                    + info.getSlotSharingGroup()
+                                                            .getResourceProfile()
+                                                    + " , "
+                                                    + info.getJobVertexID().toHexString()));
+            freeSlots.forEach(
+                    slotInfo ->
+                            LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
+                                    .debug("test1: " + slotInfo.getResourceProfile()));
             final Map<JobVertexID, Integer> vertexParallelism =
                     determineParallelism(containedJobVertices, slotsPerSlotSharingGroup);
 
@@ -134,8 +147,31 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
             for (ExecutionSlotSharingGroup executionSlotSharingGroup :
                     sharedSlotToVertexAssignment) {
-                final SlotInfo slotInfo = slotIterator.next();
+                SlotInfo slotInfo =
+                        freeSlots.stream()
+                                .filter(
+                                        slot ->
+                                                slot.getResourceProfile()
+                                                        .equals(
+                                                                slotSharingGroup
+                                                                        .getResourceProfile()))
+                                .findFirst()
+                                .orElse(null);
+                if (slotInfo == null) {
+                    slotInfo = slotIterator.next();
+                }
 
+                LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
+                        .debug(
+                                "SlotSharing: "
+                                        + executionSlotSharingGroup.getContainedExecutionVertices()
+                                                .stream()
+                                                .findFirst()
+                                                .orElse(null)
+                                                .getJobVertexId()
+                                                .toHexString()
+                                        + " : "
+                                        + slotSharingGroup.getResourceProfile());
                 assignments.add(
                         new ExecutionSlotSharingGroupAndSlot(executionSlotSharingGroup, slotInfo));
             }

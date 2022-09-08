@@ -2,7 +2,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
@@ -88,34 +87,6 @@ public class Rescheduling extends StateWithExecutionGraph {
 
         } catch (Exception ignored) {
 
-        }
-        ExecutionGraph executionGraph = getExecutionGraph();
-        for (Map.Entry<JobVertexID, ExecutionJobVertex> vertex :
-                executionGraph.getAllVertices().entrySet()) {
-            getLogger()
-                    .debug(
-                            vertex.getKey()
-                                    + ":"
-                                    + reschedulingPlan.get(vertex.getKey()).getResourceProfile());
-            vertex.getValue()
-                    .getJobVertex()
-                    .setSlotSharingGroup(reschedulingPlan.get(vertex.getKey()));
-            vertex.getValue().setSlotSharingGroup(reschedulingPlan.get(vertex.getKey()));
-
-            getLogger()
-                    .debug(
-                            vertex.getKey()
-                                    + ":"
-                                    + vertex.getValue().getSlotSharingGroup().getResourceProfile());
-        }
-
-        for (Map.Entry<JobVertexID, ExecutionJobVertex> entry :
-                getExecutionGraph().getAllVertices().entrySet()) {
-            getLogger()
-                    .debug(
-                            entry.getKey()
-                                    + ":"
-                                    + entry.getValue().getSlotSharingGroup().getResourceProfile());
         }
 
         goToWaitingForResourcesFuture =

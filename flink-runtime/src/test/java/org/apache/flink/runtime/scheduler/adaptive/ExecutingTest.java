@@ -54,6 +54,7 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
@@ -78,6 +79,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -648,6 +650,15 @@ public class ExecutingTest extends TestLogger {
 
         @Override
         public void archiveFailure(RootExceptionHistoryEntry failure) {}
+
+        @Override
+        public void goToRescheduling(
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                Map<JobVertexID, SlotSharingGroup> reschedulingPlan,
+                Duration backoffTime,
+                List<ExceptionHistoryEntry> failureCollection) {}
     }
 
     static class CancellingArguments {
