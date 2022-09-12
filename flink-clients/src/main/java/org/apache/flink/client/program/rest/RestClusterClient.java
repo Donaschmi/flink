@@ -507,8 +507,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan) {
-        LOG.debug("Azerty");
+            JobID jobId, ReschedulePlanJSONMapper reschedulePlan) {
         final ReschedulingTriggerHeaders reschedulingTriggerHeaders =
                 ReschedulingTriggerHeaders.getInstance();
         final ReschedulingTriggerMessageParameters reschedulingTriggerMessageParameters =
@@ -519,7 +518,6 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         reschedulingTriggerHeaders,
                         reschedulingTriggerMessageParameters,
                         new ReschedulingTriggerRequestBody(null, reschedulePlan));
-        LOG.debug("Qwerty");
         return responseFuture
                 .thenCompose(
                         reschedulingTriggerResponseBody -> {

@@ -160,7 +160,7 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan) {
+            JobID jobId, ReschedulePlanJSONMapper reschedulePlan) {
         return null;
     }
 

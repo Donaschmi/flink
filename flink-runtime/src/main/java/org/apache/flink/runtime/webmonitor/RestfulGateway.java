@@ -252,7 +252,7 @@ public interface RestfulGateway extends RpcGateway {
      * @return Future which is completed once the operation is triggered successfully
      */
     default CompletableFuture<Acknowledge> triggerRescheduling(
-            JobID jobID, ReschedulePlanJSONMapper[] reschedulePlan, @RpcTimeout Time timeout) {
+            JobID jobID, ReschedulePlanJSONMapper reschedulePlan, @RpcTimeout Time timeout) {
         throw new UnsupportedOperationException();
     }
 

@@ -96,7 +96,7 @@ public class DispatcherCachedOperationsHandler {
 
     public CompletableFuture<Acknowledge> triggerRescheduling(
             AsynchronousJobOperationKey operationKey,
-            ReschedulePlanJSONMapper[] reschedulePlan,
+            ReschedulePlanJSONMapper reschedulePlan,
             Time timeout) {
         return registerReschedulingOperationIdempotently(
                 operationKey,

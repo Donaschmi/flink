@@ -841,7 +841,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            ReschedulePlanJSONMapper[] reschedulePlan, Time timeout) {
+            ReschedulePlanJSONMapper reschedulePlan, Time timeout) {
         return schedulerNG.triggerRescheduling(
                 reschedulePlan, getGateway(), registeredTaskManagers.keySet());
     }

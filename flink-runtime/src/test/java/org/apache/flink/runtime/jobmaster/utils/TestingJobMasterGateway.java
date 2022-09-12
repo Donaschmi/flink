@@ -429,7 +429,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            ReschedulePlanJSONMapper[] reschedulePlanJSONMappers, Time timeout) {
+            ReschedulePlanJSONMapper reschedulePlanJSONMappers, Time timeout) {
         return triggerReschedulingFunction.get();
     }
 

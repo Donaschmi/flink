@@ -641,7 +641,7 @@ public class AdaptiveScheduler
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            ReschedulePlanJSONMapper[] reschedulePlan,
+            ReschedulePlanJSONMapper reschedulePlan,
             JobMasterGateway gateway,
             Set<ResourceID> resourceIDS) {
         Map<JobVertexID, SlotSharingGroup> reschedulePlanMapped =
@@ -688,19 +688,24 @@ public class AdaptiveScheduler
 
     @VisibleForTesting
     static Map<JobVertexID, SlotSharingGroup> convertJSONMapperToMap(
-            ReschedulePlanJSONMapper[] plans) {
+            ReschedulePlanJSONMapper plan) {
         Map<JobVertexID, SlotSharingGroup> map = new HashMap<>();
-        for (ReschedulePlanJSONMapper plan : plans) {
-            SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-            slotSharingGroup.setResourceProfile(
+        Map<Integer, SlotSharingGroup> ssgMap = new HashMap<>();
+        for (ReschedulePlanJSONMapper.SSGMapping ssgMapping : plan.getSsgMapping()) {
+            SlotSharingGroup ssg = new SlotSharingGroup();
+            ssg.setResourceProfile(
                     ResourceProfile.newBuilder()
-                            .setCpuCores(plan.getCPU())
-                            .setTaskHeapMemoryMB(plan.getHeap())
-                            .setManagedMemoryMB(plan.getManaged())
-                            .setNetworkMemoryMB(plan.getNetwork())
-                            .setTaskOffHeapMemoryMB(plan.getOffHeap())
+                            .setCpuCores(ssgMapping.getCPU())
+                            .setTaskHeapMemoryMB(ssgMapping.getHeap())
+                            .setManagedMemoryMB(ssgMapping.getManaged())
+                            .setNetworkMemoryMB(ssgMapping.getNetwork())
+                            .setTaskOffHeapMemoryMB(ssgMapping.getOffHeap())
                             .build());
-            map.put(JobVertexID.fromHexString(plan.getVertexID()), slotSharingGroup);
+            ssgMap.put(ssgMapping.getIndex(), ssg);
+        }
+
+        for (ReschedulePlanJSONMapper.VertexMapping vertex : plan.getVertexMapping()) {
+            map.put(JobVertexID.fromHexString(vertex.getVertexID()), ssgMap.get(vertex.getSsg()));
         }
         return map;
     }

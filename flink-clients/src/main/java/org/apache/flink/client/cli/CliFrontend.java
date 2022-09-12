@@ -859,7 +859,7 @@ public class CliFrontend {
         logAndSysout("Reschedule job " + jobId + '.');
 
         try {
-            final ReschedulePlanJSONMapper[] reschedulePlan = rescheduleOptions.getReschedulePlan();
+            final ReschedulePlanJSONMapper reschedulePlan = rescheduleOptions.getReschedulePlan();
             runClusterAction(
                     activeCommandLine,
                     commandLine,
@@ -871,7 +871,7 @@ public class CliFrontend {
 
     /** Sends a ReschedulingTriggerMessage to the job manager. */
     private void triggerRescheduling(
-            ClusterClient<?> clusterClient, JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan)
+            ClusterClient<?> clusterClient, JobID jobId, ReschedulePlanJSONMapper reschedulePlan)
             throws FlinkException {
         logAndSysout("Triggering rescheduling for job " + jobId + '.');
 

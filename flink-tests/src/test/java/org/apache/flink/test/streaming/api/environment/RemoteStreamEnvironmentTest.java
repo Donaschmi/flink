@@ -278,7 +278,7 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
         }
 
         @Override
-        public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan) {
+        public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId, ReschedulePlanJSONMapper reschedulePlan) {
             return null;
         }
 

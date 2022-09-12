@@ -125,33 +125,45 @@ public class ReschedulingTest extends TestLogger {
     @Test
     public void testJSONWellConvertedToMap() throws JsonProcessingException {
         String json =
-                "[\n"
-                        + "  {\n"
-                        + "    \"vertexID\": \"90bea66de1c231edf33913ecd54406c1\",\n"
-                        + "    \"cpu\": 0.6,\n"
-                        + "    \"managed\": 160,\n"
-                        + "    \"heap\": 10,\n"
-                        + "    \"network\": 10,\n"
-                        + "    \"offHeap\": 0\n"
-                        + "  },\n"
-                        + "  {\n"
-                        + "    \"vertexID\": \"cbc357ccb763df2852fee8c4fc7d55f2\",\n"
-                        + "    \"cpu\": 0.4,\n"
-                        + "    \"managed\": 60,\n"
-                        + "    \"heap\": 100,\n"
-                        + "    \"network\": 10,\n"
-                        + "    \"offHeap\": 0\n"
-                        + "  }\n"
-                        + "]\n";
+                "{ \n"
+                        + "  \"vertices\": [\n"
+                        + "    {\n"
+                        + "      \"vertexID\": \"ebca99d2ba186d39f4b704d5595984ad\",\n"
+                        + "      \"ssg\": 1\n"
+                        + "    },\n"
+                        + "    {\n"
+                        + "      \"vertexID\": \"365ccfea623eaebf17f36c5a0cdc4ddc\",\n"
+                        + "      \"ssg\": 2\n"
+                        + "    }\n"
+                        + "  ],\n"
+                        + "  \"ssg\":\n"
+                        + "  [\n"
+                        + "    {\n"
+                        + "      \"index\": 1,\n"
+                        + "      \"cpu\": 0.6,\n"
+                        + "      \"managed\": 1000,\n"
+                        + "      \"heap\": 10,\n"
+                        + "      \"network\": 10,\n"
+                        + "      \"offHeap\": 0\n"
+                        + "    },\n"
+                        + "    {\n"
+                        + "      \"index\": 2,\n"
+                        + "      \"cpu\": 0.4,\n"
+                        + "      \"managed\": 60,\n"
+                        + "      \"heap\": 100,\n"
+                        + "      \"network\": 10,\n"
+                        + "      \"offHeap\": 0\n"
+                        + "    }\n"
+                        + "  ]\n"
+                        + "}";
         ObjectMapper mapper = new ObjectMapper();
-        ReschedulePlanJSONMapper[] mapping =
-                mapper.readValue(json, ReschedulePlanJSONMapper[].class);
+        ReschedulePlanJSONMapper mapping = mapper.readValue(json, ReschedulePlanJSONMapper.class);
         Map<JobVertexID, SlotSharingGroup> map = AdaptiveScheduler.convertJSONMapperToMap(mapping);
         assertThat(
-                map.containsKey(JobVertexID.fromHexString("90bea66de1c231edf33913ecd54406c1")),
+                map.containsKey(JobVertexID.fromHexString("ebca99d2ba186d39f4b704d5595984ad")),
                 is(true));
         assertThat(
-                map.containsKey(JobVertexID.fromHexString("cbc357ccb763df2852fee8c4fc7d55f2")),
+                map.containsKey(JobVertexID.fromHexString("ebca99d2ba186d39f4b704d5595984ad")),
                 is(true));
         assertThat(
                 map.get(JobVertexID.fromHexString("90bea66de1c231edf33913ecd54406c1"))
@@ -160,13 +172,13 @@ public class ReschedulingTest extends TestLogger {
                                 ResourceProfile.newBuilder()
                                         .setCpuCores(0.6)
                                         .setTaskHeapMemoryMB(10)
-                                        .setManagedMemoryMB(160)
+                                        .setManagedMemoryMB(100)
                                         .setNetworkMemoryMB(10)
                                         .setTaskOffHeapMemoryMB(0)
                                         .build()),
                 is(true));
         assertThat(
-                map.get(JobVertexID.fromHexString("cbc357ccb763df2852fee8c4fc7d55f2"))
+                map.get(JobVertexID.fromHexString("365ccfea623eaebf17f36c5a0cdc4ddc"))
                         .getResourceProfile()
                         .equals(
                                 ResourceProfile.newBuilder()

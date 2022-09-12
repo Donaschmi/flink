@@ -109,7 +109,7 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan) {
+            JobID jobId, ReschedulePlanJSONMapper reschedulePlan) {
         return miniCluster.triggerRescheduling(jobId, reschedulePlan);
     }
 

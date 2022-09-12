@@ -133,7 +133,7 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
             @Nullable String targetDirectory, boolean cancelJob, SavepointFormatType formatType);
 
     CompletableFuture<Acknowledge> triggerRescheduling(
-            ReschedulePlanJSONMapper[] reschedulePlan,
+            ReschedulePlanJSONMapper reschedulePlan,
             JobMasterGateway gateway,
             Set<ResourceID> resourceIDS);
 

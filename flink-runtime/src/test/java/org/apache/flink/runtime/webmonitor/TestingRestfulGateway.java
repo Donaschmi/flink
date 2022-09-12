@@ -363,7 +363,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            JobID jobID, ReschedulePlanJSONMapper[] reschedulePlanJSONMappers, Time timeout) {
+            JobID jobID, ReschedulePlanJSONMapper reschedulePlanJSONMappers, Time timeout) {
         return triggerReschedulingFunction.apply(jobID);
     }
 

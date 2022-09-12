@@ -251,7 +251,7 @@ public interface JobMasterGateway
      * @param timeout for the rpc call
      */
     CompletableFuture<Acknowledge> triggerRescheduling(
-            ReschedulePlanJSONMapper[] reschedulePlan, @RpcTimeout final Time timeout);
+            ReschedulePlanJSONMapper reschedulePlan, @RpcTimeout final Time timeout);
 
     /**
      * Stops the job with a savepoint.

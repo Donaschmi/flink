@@ -732,7 +732,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            ReschedulePlanJSONMapper[] reschedulePlan,
+            ReschedulePlanJSONMapper reschedulePlan,
             JobMasterGateway gateway,
             Set<ResourceID> resourceIDS) {
         return null;

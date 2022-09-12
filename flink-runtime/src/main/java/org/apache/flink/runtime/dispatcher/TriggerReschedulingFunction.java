@@ -32,5 +32,5 @@ import java.util.concurrent.CompletableFuture;
 @FunctionalInterface
 public interface TriggerReschedulingFunction {
     CompletableFuture<Acknowledge> apply(
-            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan, Time timeout);
+            JobID jobId, ReschedulePlanJSONMapper reschedulePlan, Time timeout);
 }

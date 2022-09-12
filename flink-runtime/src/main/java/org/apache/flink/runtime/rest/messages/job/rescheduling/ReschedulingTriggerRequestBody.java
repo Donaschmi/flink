@@ -43,13 +43,13 @@ public class ReschedulingTriggerRequestBody implements RequestBody {
 
     @JsonProperty(FIELD_NAME_RESCHEDULE_PLAN)
     @Nullable
-    private final ReschedulePlanJSONMapper[] reschedulePlan;
+    private final ReschedulePlanJSONMapper reschedulePlan;
 
     @JsonCreator
     public ReschedulingTriggerRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_TRIGGER_ID) TriggerId triggerId,
             @Nullable @JsonProperty(FIELD_NAME_RESCHEDULE_PLAN)
-                    ReschedulePlanJSONMapper[] reschedulePlan) {
+                    ReschedulePlanJSONMapper reschedulePlan) {
         this.triggerId = triggerId;
         this.reschedulePlan = reschedulePlan;
     }
@@ -60,7 +60,7 @@ public class ReschedulingTriggerRequestBody implements RequestBody {
     }
 
     @JsonIgnore
-    public ReschedulePlanJSONMapper[] getReschedulePlan() {
+    public ReschedulePlanJSONMapper getReschedulePlan() {
         return reschedulePlan;
     }
 }

@@ -55,12 +55,12 @@ public class RescheduleOptions extends CommandLineOptions {
         return reschedulePlanPath;
     }
 
-    public ReschedulePlanJSONMapper[] getReschedulePlan() throws Exception {
+    public ReschedulePlanJSONMapper getReschedulePlan() throws Exception {
         if (!this.reschedulePlan || this.reschedulePlanPath == null) {
             throw new Exception("ReschedulePlanPath cannot be null.");
         }
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(
-                Paths.get(this.reschedulePlanPath).toFile(), ReschedulePlanJSONMapper[].class);
+                Paths.get(this.reschedulePlanPath).toFile(), ReschedulePlanJSONMapper.class);
     }
 }

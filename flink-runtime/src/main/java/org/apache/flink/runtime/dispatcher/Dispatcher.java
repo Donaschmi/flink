@@ -906,7 +906,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            JobID jobID, ReschedulePlanJSONMapper[] reschedulePlan, Time timeout) {
+            JobID jobID, ReschedulePlanJSONMapper reschedulePlan, Time timeout) {
         return performOperationOnJobMasterGateway(
                 jobID, gateway -> gateway.triggerRescheduling(reschedulePlan, timeout));
     }

@@ -853,7 +853,7 @@ public class MiniCluster implements AutoCloseableAsync {
     }
 
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan) {
+            JobID jobId, ReschedulePlanJSONMapper reschedulePlan) {
         return runDispatcherCommand(
                 dispatcherGateway ->
                         dispatcherGateway.triggerRescheduling(jobId, reschedulePlan, rpcTimeout));

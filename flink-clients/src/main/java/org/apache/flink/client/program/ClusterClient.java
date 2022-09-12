@@ -185,7 +185,7 @@ public interface ClusterClient<T> extends AutoCloseable {
      * @return path future where the savepoint is located
      */
     CompletableFuture<Acknowledge> triggerRescheduling(
-            JobID jobId, ReschedulePlanJSONMapper[] reschedulePlan);
+            JobID jobId, ReschedulePlanJSONMapper reschedulePlan);
 
     /**
      * Sends out a request to a specified coordinator and return the response.

@@ -277,7 +277,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
 
         @Override
         public CompletableFuture<Acknowledge> apply(
-                JobID jobID, ReschedulePlanJSONMapper[] reschedulePlan, Time timeout) {
+                JobID jobID, ReschedulePlanJSONMapper reschedulePlan, Time timeout) {
             invocations.add(new Tuple1<>(jobID));
             return applyWrappedFunction(jobID, timeout);
         }
