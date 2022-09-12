@@ -527,7 +527,7 @@ public class RocksDBStateBackendConfigTest {
 
             try (RocksDBResourceContainer optionsContainer =
                     new RocksDBResourceContainer(
-                            configuration, PredefinedOptions.DEFAULT, null, null)) {
+                            configuration, PredefinedOptions.DEFAULT, null, null, false)) {
 
                 DBOptions dbOptions = optionsContainer.getDbOptions();
                 assertEquals(-1, dbOptions.maxOpenFiles());
@@ -606,7 +606,11 @@ public class RocksDBStateBackendConfigTest {
         configuration.set(RocksDBConfigurableOptions.COMPACTION_STYLE, CompactionStyle.UNIVERSAL);
         try (final RocksDBResourceContainer optionsContainer =
                 new RocksDBResourceContainer(
-                        configuration, PredefinedOptions.SPINNING_DISK_OPTIMIZED, null, null)) {
+                        configuration,
+                        PredefinedOptions.SPINNING_DISK_OPTIMIZED,
+                        null,
+                        null,
+                        false)) {
 
             final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
             assertNotNull(columnFamilyOptions);
@@ -618,7 +622,8 @@ public class RocksDBStateBackendConfigTest {
                         new Configuration(),
                         PredefinedOptions.SPINNING_DISK_OPTIMIZED,
                         null,
-                        null)) {
+                        null,
+                        false)) {
 
             final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
             assertNotNull(columnFamilyOptions);

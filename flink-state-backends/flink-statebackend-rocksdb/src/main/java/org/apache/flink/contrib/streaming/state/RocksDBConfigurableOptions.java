@@ -120,6 +120,12 @@ public class RocksDBConfigurableOptions implements Serializable {
                                             "There is no need to modify the RocksDB log level, unless for troubleshooting RocksDB.")
                                     .build());
 
+    public static final ConfigOption<Boolean> USE_DIRECT_READ =
+            key("state.backend.rocksdb.use-direct-read")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Use DirectIO to bypass page cache");
+
     // --------------------------------------------------------------------------
     // Provided configurable ColumnFamilyOptions within Flink
     // --------------------------------------------------------------------------

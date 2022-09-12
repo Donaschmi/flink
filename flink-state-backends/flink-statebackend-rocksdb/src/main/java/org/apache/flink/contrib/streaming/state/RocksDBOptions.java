@@ -158,4 +158,11 @@ public class RocksDBOptions {
                                             + "the partitions that are required to perform the index/filter query. "
                                             + "This option only has an effect when '%s' or '%s' are configured.",
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
+
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    public static final ConfigOption<Boolean> USE_DIRECT_READ =
+            ConfigOptions.key("state.backend.rocksdb.use-direct-read")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Use direct read");
 }

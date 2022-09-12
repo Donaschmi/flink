@@ -118,6 +118,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     private long writeBatchSize =
             RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes();
 
+    private boolean useDirectRead = RocksDBConfigurableOptions.USE_DIRECT_READ.defaultValue();
+
     private RocksDB injectedTestDB; // for testing
     private ColumnFamilyHandle injectedDefaultColumnFamilyHandle; // for testing
     private RocksDBStateUploader injectRocksDBStateUploader; // for testing
@@ -254,6 +256,11 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         return this;
     }
 
+    RocksDBKeyedStateBackendBuilder<K> setUseDirectRead(boolean useDirectRead) {
+        this.useDirectRead = useDirectRead;
+        return this;
+    }
+
     private static void checkAndCreateDirectory(File directory) throws IOException {
         if (directory.exists()) {
             if (!directory.isDirectory()) {
@@ -301,7 +308,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 nativeMetricMonitor =
                         nativeMetricOptions.isEnabled()
                                 ? new RocksDBNativeMetricMonitor(
-                                        nativeMetricOptions, metricGroup, db)
+                                        nativeMetricOptions, metricGroup, db, null)
                                 : null;
             } else {
                 prepareDirectories();

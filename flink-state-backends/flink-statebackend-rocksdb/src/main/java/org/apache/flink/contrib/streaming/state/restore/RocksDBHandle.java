@@ -143,7 +143,8 @@ class RocksDBHandle implements AutoCloseable {
         // init native metrics monitor if configured
         nativeMetricMonitor =
                 nativeMetricOptions.isEnabled()
-                        ? new RocksDBNativeMetricMonitor(nativeMetricOptions, metricGroup, db)
+                        ? new RocksDBNativeMetricMonitor(
+                                nativeMetricOptions, metricGroup, db, dbOptions.statistics())
                         : null;
     }
 
@@ -203,7 +204,7 @@ class RocksDBHandle implements AutoCloseable {
             final Path targetFile = instanceRocksDBDirectory.resolve(fileName);
             if (fileName.endsWith(SST_FILE_SUFFIX)) {
                 try {
-                    // hardlink'ing the immutable sst-files.
+                    // hardlinking the immutable sst-files.
                     Files.createLink(targetFile, file);
                     continue;
                 } catch (IOException ioe) {
