@@ -270,6 +270,7 @@ public class RocksDBConfigurableOptions implements Serializable {
                 LOG_MAX_FILE_SIZE,
                 LOG_FILE_NUM,
                 LOG_DIR,
+                USE_DIRECT_READ,
 
                 // configurable ColumnFamilyOptions
                 COMPACTION_STYLE,
