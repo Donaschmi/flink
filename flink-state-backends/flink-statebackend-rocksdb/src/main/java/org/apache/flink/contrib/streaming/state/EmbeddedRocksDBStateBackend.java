@@ -264,9 +264,6 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         LOG.info("Using predefined options: {}.", predefinedOptions.name());
 
         // configurable options
-        Configuration configuration = new Configuration();
-        configuration.setBoolean("state.backend.rocksdb.use-direct-read", true);
-        config = mergeConfigurableOptions(config, configuration);
         this.configurableOptions = mergeConfigurableOptions(original.configurableOptions, config);
 
         // configure RocksDB options factory

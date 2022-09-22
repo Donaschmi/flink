@@ -61,6 +61,7 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
