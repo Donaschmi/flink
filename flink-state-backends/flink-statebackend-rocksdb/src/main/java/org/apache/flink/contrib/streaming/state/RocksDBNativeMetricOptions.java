@@ -255,12 +255,26 @@ public class RocksDBNativeMetricOptions implements Serializable {
                     .withDescription(
                             "Monitor the total count of block cache hit in RocksDB (BLOCK_CACHE_HIT == BLOCK_CACHE_INDEX_HIT + BLOCK_CACHE_FILTER_HIT + BLOCK_CACHE_DATA_HIT).");
 
+    public static final ConfigOption<Boolean> MONITOR_BLOCK_CACHE_DATA_HIT =
+            ConfigOptions.key("state.backend.rocksdb.metrics.block-cache-data-hit")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Monitor the total count of block cache hit in RocksDB (BLOCK_CACHE_DATA_HIT).");
+
     public static final ConfigOption<Boolean> MONITOR_BLOCK_CACHE_MISS =
             ConfigOptions.key("state.backend.rocksdb.metrics.block-cache-miss")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Monitor the total count of block cache misses in RocksDB (BLOCK_CACHE_MISS == BLOCK_CACHE_INDEX_MISS + BLOCK_CACHE_FILTER_MISS + BLOCK_CACHE_DATA_MISS).");
+
+    public static final ConfigOption<Boolean> MONITOR_BLOCK_CACHE_DATA_MISS =
+            ConfigOptions.key("state.backend.rocksdb.metrics.block-cache-data-miss")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Monitor the total count of block cache miss in RocksDB (BLOCK_CACHE_DATA_MISS).");
 
     public static final ConfigOption<Boolean> MONITOR_BYTES_READ =
             ConfigOptions.key("state.backend.rocksdb.metrics.bytes-read")
@@ -301,6 +315,25 @@ public class RocksDBNativeMetricOptions implements Serializable {
                     .defaultValue(false)
                     .withDescription(
                             "Monitor the duration of writer requiring to wait for compaction or flush to finish in RocksDB.");
+
+    /** Non-offical metrics. */
+    public static final ConfigOption<Boolean> MONITOR_GET_HIT_L0 =
+            ConfigOptions.key("state.backend.rocksdb.metrics.get-hit-l0")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("T.");
+
+    public static final ConfigOption<Boolean> MONITOR_GET_HIT_L1 =
+            ConfigOptions.key("state.backend.rocksdb.metrics.get-hit-l1")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("T.");
+
+    public static final ConfigOption<Boolean> MONITOR_GET_HIT_L2_AN_UP =
+            ConfigOptions.key("state.backend.rocksdb.metrics.get-hit-l2-and-up")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("T.");
 
     /** Creates a {@link RocksDBNativeMetricOptions} based on an external configuration. */
     public static RocksDBNativeMetricOptions fromConfig(ReadableConfig config) {
@@ -435,12 +468,17 @@ public class RocksDBNativeMetricOptions implements Serializable {
                 {
                     put(MONITOR_BLOCK_CACHE_HIT, TickerType.BLOCK_CACHE_HIT);
                     put(MONITOR_BLOCK_CACHE_MISS, TickerType.BLOCK_CACHE_MISS);
+                    put(MONITOR_BLOCK_CACHE_DATA_HIT, TickerType.BLOCK_CACHE_DATA_HIT);
+                    put(MONITOR_BLOCK_CACHE_DATA_MISS, TickerType.BLOCK_CACHE_DATA_MISS);
                     put(MONITOR_BYTES_READ, TickerType.BYTES_READ);
                     put(MONITOR_ITER_BYTES_READ, TickerType.ITER_BYTES_READ);
                     put(MONITOR_BYTES_WRITTEN, TickerType.BYTES_WRITTEN);
                     put(MONITOR_COMPACTION_READ_BYTES, TickerType.COMPACT_READ_BYTES);
                     put(MONITOR_COMPACTION_WRITE_BYTES, TickerType.COMPACT_WRITE_BYTES);
                     put(MONITOR_STALL_MICROS, TickerType.STALL_MICROS);
+                    put(MONITOR_GET_HIT_L0, TickerType.GET_HIT_L0);
+                    put(MONITOR_GET_HIT_L1, TickerType.GET_HIT_L1);
+                    put(MONITOR_GET_HIT_L2_AN_UP, TickerType.GET_HIT_L2_AND_UP);
                 }
             };
 

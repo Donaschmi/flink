@@ -65,6 +65,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    private ResourceProfile resourceProfile;
+
     @JsonProperty(FIELD_NAME_RESOURCE_ID)
     @JsonSerialize(using = ResourceIDSerializer.class)
     private final ResourceID resourceId;
@@ -151,6 +153,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
                 ResourceProfileInfo.fromResrouceProfile(freeResource),
                 hardwareDescription,
                 memoryConfiguration);
+
+        this.resourceProfile = totalResource;
     }
 
     @JsonIgnore
@@ -206,6 +210,10 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
     @JsonIgnore
     public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
         return memoryConfiguration;
+    }
+
+    public ResourceProfile getTotalResourceProfile() {
+        return resourceProfile;
     }
 
     @Override

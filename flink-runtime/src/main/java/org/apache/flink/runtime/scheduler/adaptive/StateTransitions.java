@@ -159,6 +159,7 @@ public interface StateTransitions {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Map<JobVertexID, SlotSharingGroup> reschedulingPlan,
+                JobGraphJobInformation jobInformation,
                 Duration backoffTime,
                 List<ExceptionHistoryEntry> failureCollection);
     }

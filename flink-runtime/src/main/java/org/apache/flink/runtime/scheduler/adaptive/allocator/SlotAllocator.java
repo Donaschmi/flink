@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.util.ResourceCounter;
 
@@ -52,7 +53,9 @@ public interface SlotAllocator {
      *     slots
      */
     Optional<? extends VertexParallelism> determineParallelism(
-            JobInformation jobInformation, Collection<? extends SlotInfo> slots);
+            JobInformation jobInformation,
+            Collection<? extends SlotInfo> slots,
+            Collection<ResourceProfile> totalResources);
 
     /**
      * Reserves slots according to the given assignment if possible. If the underlying set of

@@ -68,6 +68,7 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
+import org.apache.flink.runtime.resourcemanager.RequestTotalResourcesFunction;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -208,6 +209,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
+    private final RequestTotalResourcesFunction requestTotalResourcesFunction;
+
     // ------------------------------------------------------------------------
 
     public JobMaster(
@@ -319,6 +322,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
         this.jobStatusListener = new JobManagerJobStatusListener();
+        this.requestTotalResourcesFunction = new RequestTotalResourcesFunction(rpcTimeout);
         this.schedulerNG =
                 createScheduler(
                         slotPoolServiceSchedulerFactory,
@@ -330,7 +334,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
         this.resourceManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
 
-        this.resourceManagerConnection = null;
         this.establishedResourceManagerConnection = null;
 
         this.accumulators = new HashMap<>();
@@ -362,7 +365,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         initializationTimestamp,
                         getMainThreadExecutor(),
                         fatalErrorHandler,
-                        jobStatusListener);
+                        jobStatusListener,
+                        requestTotalResourcesFunction);
 
         return scheduler;
     }
@@ -842,8 +846,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
             ReschedulePlanJSONMapper reschedulePlan, Time timeout) {
-        return schedulerNG.triggerRescheduling(
-                reschedulePlan, getGateway(), registeredTaskManagers.keySet());
+        return schedulerNG.triggerRescheduling(reschedulePlan, getGateway());
     }
 
     @Override
@@ -1113,7 +1116,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         resourceManagerAddress.getAddress(),
                         resourceManagerAddress.getResourceManagerId(),
                         futureExecutor);
-
         resourceManagerConnection.start();
     }
 
@@ -1131,6 +1133,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
             final ResourceManagerGateway resourceManagerGateway =
                     resourceManagerConnection.getTargetGateway();
+
+            requestTotalResourcesFunction.setResourceManagerGateway(resourceManagerGateway);
 
             final ResourceID resourceManagerResourceId = success.getResourceManagerResourceId();
 

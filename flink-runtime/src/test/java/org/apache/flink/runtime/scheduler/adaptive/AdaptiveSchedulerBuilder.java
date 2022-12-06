@@ -226,6 +226,7 @@ public class AdaptiveSchedulerBuilder {
                 mainThreadExecutor,
                 fatalErrorHandler,
                 jobStatusListener,
-                executionGraphFactory);
+                executionGraphFactory,
+                null);
     }
 }

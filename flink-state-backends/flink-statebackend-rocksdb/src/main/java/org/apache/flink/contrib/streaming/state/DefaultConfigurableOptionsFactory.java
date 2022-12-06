@@ -58,7 +58,6 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_BLOOM_FILTER;
-import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_DIRECT_READ;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BUFFER_SIZE;
 
@@ -105,10 +104,6 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
 
         if (isOptionConfigured(LOG_FILE_NUM)) {
             currentOptions.setKeepLogFileNum(getLogFileNum());
-        }
-
-        if (isOptionConfigured(USE_DIRECT_READ)) {
-            currentOptions.setUseDirectReads(getUseDirectRead());
         }
 
         return currentOptions;
@@ -298,10 +293,6 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
                 logFileNum > 0, "Invalid configuration: Must keep at least one log file.");
         configuredOptions.put(LOG_FILE_NUM.key(), String.valueOf(logFileNum));
         return this;
-    }
-
-    private boolean getUseDirectRead() {
-        return Boolean.parseBoolean(getInternal(USE_DIRECT_READ.key()));
     }
 
     // --------------------------------------------------------------------------
@@ -507,7 +498,6 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
                 LOG_MAX_FILE_SIZE,
                 LOG_FILE_NUM,
                 LOG_DIR,
-                USE_DIRECT_READ,
 
                 // configurable ColumnFamilyOptions
                 COMPACTION_STYLE,

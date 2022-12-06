@@ -27,7 +27,6 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -59,7 +58,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -133,9 +131,7 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
             @Nullable String targetDirectory, boolean cancelJob, SavepointFormatType formatType);
 
     CompletableFuture<Acknowledge> triggerRescheduling(
-            ReschedulePlanJSONMapper reschedulePlan,
-            JobMasterGateway gateway,
-            Set<ResourceID> resourceIDS);
+            ReschedulePlanJSONMapper reschedulePlan, JobMasterGateway gateway);
 
     CompletableFuture<String> triggerCheckpoint();
 

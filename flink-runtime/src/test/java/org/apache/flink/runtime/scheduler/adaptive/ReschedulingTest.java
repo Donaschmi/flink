@@ -208,6 +208,7 @@ public class ReschedulingTest extends TestLogger {
                 executionGraphHandler,
                 operatorCoordinatorHandler,
                 null,
+                null,
                 log,
                 Duration.ZERO,
                 ClassLoader.getSystemClassLoader(),

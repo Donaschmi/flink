@@ -319,8 +319,11 @@ public final class RocksDBResourceContainer implements AutoCloseable {
                 internalGetOption(RocksDBConfigurableOptions.LOG_FILE_NUM));
 
         currentOptions.setUseDirectReads(
-                internalGetOption(RocksDBConfigurableOptions.USE_DIRECT_READ));
+                internalGetOption(RocksDBConfigurableOptions.USE_DIRECT_READS));
 
+        currentOptions.setUseDirectIoForFlushAndCompaction(
+                internalGetOption(RocksDBConfigurableOptions.USE_DIRECT_WRITES));
+        LOG.debug(String.valueOf(internalGetOption(RocksDBConfigurableOptions.USE_DIRECT_WRITES)));
         return currentOptions;
     }
 

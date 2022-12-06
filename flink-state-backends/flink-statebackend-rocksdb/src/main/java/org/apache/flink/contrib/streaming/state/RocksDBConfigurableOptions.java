@@ -120,8 +120,14 @@ public class RocksDBConfigurableOptions implements Serializable {
                                             "There is no need to modify the RocksDB log level, unless for troubleshooting RocksDB.")
                                     .build());
 
-    public static final ConfigOption<Boolean> USE_DIRECT_READ =
-            key("state.backend.rocksdb.use-direct-read")
+    public static final ConfigOption<Boolean> USE_DIRECT_READS =
+            key("state.backend.rocksdb.use-direct-reads")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Use DirectIO to bypass page cache");
+
+    public static final ConfigOption<Boolean> USE_DIRECT_WRITES =
+            key("state.backend.rocksdb.use-direct-writes")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription("Use DirectIO to bypass page cache");
@@ -270,7 +276,8 @@ public class RocksDBConfigurableOptions implements Serializable {
                 LOG_MAX_FILE_SIZE,
                 LOG_FILE_NUM,
                 LOG_DIR,
-                USE_DIRECT_READ,
+                USE_DIRECT_READS,
+                USE_DIRECT_WRITES,
 
                 // configurable ColumnFamilyOptions
                 COMPACTION_STYLE,

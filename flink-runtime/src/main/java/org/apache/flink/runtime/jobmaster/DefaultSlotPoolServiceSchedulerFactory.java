@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.SimpleRequestSlotMatchingStra
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.resourcemanager.RequestTotalResourcesFunction;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
@@ -110,7 +111,8 @@ public final class DefaultSlotPoolServiceSchedulerFactory
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
-            JobStatusListener jobStatusListener)
+            JobStatusListener jobStatusListener,
+            RequestTotalResourcesFunction requestTotalResourcesFunction)
             throws Exception {
         return schedulerNGFactory.createInstance(
                 log,
@@ -131,7 +133,8 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                 initializationTimestamp,
                 mainThreadExecutor,
                 fatalErrorHandler,
-                jobStatusListener);
+                jobStatusListener,
+                requestTotalResourcesFunction);
     }
 
     public static DefaultSlotPoolServiceSchedulerFactory create(

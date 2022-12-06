@@ -118,8 +118,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     private long writeBatchSize =
             RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes();
 
-    private boolean useDirectRead = RocksDBConfigurableOptions.USE_DIRECT_READ.defaultValue();
-
     private RocksDB injectedTestDB; // for testing
     private ColumnFamilyHandle injectedDefaultColumnFamilyHandle; // for testing
     private RocksDBStateUploader injectRocksDBStateUploader; // for testing
@@ -253,11 +251,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                         == RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue(),
                 "RocksDBStateUploader can only be set if numberOfTransferingThreads has not been manually set.");
         this.injectRocksDBStateUploader = rocksDBStateUploader;
-        return this;
-    }
-
-    RocksDBKeyedStateBackendBuilder<K> setUseDirectRead(boolean useDirectRead) {
-        this.useDirectRead = useDirectRead;
         return this;
     }
 

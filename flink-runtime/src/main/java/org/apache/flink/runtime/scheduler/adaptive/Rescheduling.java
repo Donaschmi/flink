@@ -6,6 +6,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.util.Preconditions;
 
@@ -26,7 +27,6 @@ public class Rescheduling extends StateWithExecutionGraph {
     private final Duration backoffTime;
 
     @Nullable private ScheduledFuture<?> goToWaitingForResourcesFuture;
-    private final Map<JobVertexID, SlotSharingGroup> reschedulingPlan;
 
     Rescheduling(
             Context context,
@@ -34,6 +34,7 @@ public class Rescheduling extends StateWithExecutionGraph {
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Map<JobVertexID, SlotSharingGroup> reschedulingPlan,
+            JobGraphJobInformation jobInformation,
             Logger logger,
             Duration backoffTime,
             ClassLoader userCodeClassLoader,
@@ -48,9 +49,18 @@ public class Rescheduling extends StateWithExecutionGraph {
                 failureCollection);
         this.context = context;
         this.backoffTime = backoffTime;
-        this.reschedulingPlan = reschedulingPlan;
 
         getExecutionGraph().cancel();
+
+        for (JobInformation.VertexInformation vertex : jobInformation.getVertices()) {
+            SlotSharingGroup slotSharingGroup = reschedulingPlan.get(vertex.getJobVertexID());
+            if (slotSharingGroup != null) {
+                jobInformation
+                        .getJobGraph()
+                        .findVertexByID(vertex.getJobVertexID())
+                        .setSlotSharingGroup(slotSharingGroup);
+            }
+        }
     }
 
     @Override
@@ -82,12 +92,6 @@ public class Rescheduling extends StateWithExecutionGraph {
     @Override
     void onGloballyTerminalState(JobStatus globallyTerminalState) {
         Preconditions.checkArgument(globallyTerminalState == JobStatus.CANCELED);
-        try {
-            Thread.sleep(10000);
-
-        } catch (Exception ignored) {
-
-        }
 
         goToWaitingForResourcesFuture =
                 context.runIfState(this, context::goToWaitingForResources, backoffTime);
@@ -115,6 +119,7 @@ public class Rescheduling extends StateWithExecutionGraph {
     static class Factory implements StateFactory<Rescheduling> {
 
         private final Rescheduling.Context context;
+        private final JobGraphJobInformation jobInformation;
         private final Logger log;
         private final ExecutionGraph executionGraph;
         private final ExecutionGraphHandler executionGraphHandler;
@@ -125,16 +130,18 @@ public class Rescheduling extends StateWithExecutionGraph {
         private final List<ExceptionHistoryEntry> failureCollection;
 
         public Factory(
-                Rescheduling.Context context,
+                Context context,
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Map<JobVertexID, SlotSharingGroup> reschedulingPlan,
+                JobGraphJobInformation jobInformation,
                 Logger log,
                 Duration backoffTime,
                 ClassLoader userCodeClassLoader,
                 List<ExceptionHistoryEntry> failureCollection) {
             this.context = context;
+            this.jobInformation = jobInformation;
             this.log = log;
             this.executionGraph = executionGraph;
             this.executionGraphHandler = executionGraphHandler;
@@ -156,6 +163,7 @@ public class Rescheduling extends StateWithExecutionGraph {
                     executionGraphHandler,
                     operatorCoordinatorHandler,
                     reschedulingPlan,
+                    jobInformation,
                     log,
                     backoffTime,
                     userCodeClassLoader,

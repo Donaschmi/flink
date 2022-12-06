@@ -138,7 +138,9 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         }
     }
 
-    public void notifyReschedulingRequest(Map<JobVertexID, SlotSharingGroup> reschedulePlanMapped) {
+    public void notifyReschedulingRequest(
+            Map<JobVertexID, SlotSharingGroup> reschedulePlanMapped,
+            JobGraphJobInformation jobInformation) {
         getLogger().info("Received rescheduling trigger.");
 
         context.goToRescheduling(
@@ -146,6 +148,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                 getExecutionGraphHandler(),
                 getOperatorCoordinatorHandler(),
                 reschedulePlanMapped,
+                jobInformation,
                 Duration.ofMillis(0L),
                 getFailures());
     }

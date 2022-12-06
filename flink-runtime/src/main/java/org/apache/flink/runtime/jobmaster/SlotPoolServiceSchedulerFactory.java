@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.resourcemanager.RequestTotalResourcesFunction;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -82,6 +83,7 @@ public interface SlotPoolServiceSchedulerFactory {
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
-            JobStatusListener jobStatusListener)
+            JobStatusListener jobStatusListener,
+            RequestTotalResourcesFunction requestTotalResourcesFunction)
             throws Exception;
 }

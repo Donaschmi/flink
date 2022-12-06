@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.resourcemanager.RequestTotalResourcesFunction;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
@@ -71,7 +72,8 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
             long initializationTimestamp,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final FatalErrorHandler fatalErrorHandler,
-            final JobStatusListener jobStatusListener)
+            final JobStatusListener jobStatusListener,
+            RequestTotalResourcesFunction requestTotalResourcesFunction)
             throws Exception {
 
         final SlotPool slotPool =

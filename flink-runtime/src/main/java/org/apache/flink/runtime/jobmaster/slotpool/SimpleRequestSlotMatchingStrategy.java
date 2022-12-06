@@ -33,6 +33,7 @@ public enum SimpleRequestSlotMatchingStrategy implements RequestSlotMatchingStra
     @Override
     public Collection<RequestSlotMatch> matchRequestsAndSlots(
             Collection<? extends PhysicalSlot> slots, Collection<PendingRequest> pendingRequests) {
+
         final Collection<RequestSlotMatch> resultingMatches = new ArrayList<>();
 
         // if pendingRequests has a special order, then let's preserve it

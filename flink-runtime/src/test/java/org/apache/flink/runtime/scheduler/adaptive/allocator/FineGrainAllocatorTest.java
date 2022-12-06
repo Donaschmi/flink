@@ -45,7 +45,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link SlotSharingSlotAllocator}. */
-public class SlotSharingSlotAllocatorTest extends TestLogger {
+public class FineGrainAllocatorTest extends TestLogger {
 
     private static final FreeSlotFunction TEST_FREE_SLOT_FUNCTION = (a, c, t) -> {};
     private static final ReserveSlotFunction TEST_RESERVE_SLOT_FUNCTION =
@@ -69,7 +69,7 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
     private static final JobInformation.VertexInformation vertex1 =
             new TestVertexInformation(new JobVertexID(), 4, slotSharingGroup1);
     private static final JobInformation.VertexInformation vertex2 =
-            new TestVertexInformation(new JobVertexID(), 2, slotSharingGroup1);
+            new TestVertexInformation(new JobVertexID(), 1, slotSharingGroup1);
     private static final JobInformation.VertexInformation vertex3 =
             new TestVertexInformation(new JobVertexID(), 3, slotSharingGroup2);
     private static final JobInformation.VertexInformation vertex4 =
@@ -101,6 +101,14 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
                         Math.max(vertex1.getParallelism(), vertex2.getParallelism())
                                 + vertex3.getParallelism()));
         assertThat(resourceCounter.getResourceCount(resourceProfile), is(vertex4.getParallelism()));
+    }
+
+    @Test
+    public void testMaxParallelism() {
+        final JobInformation jobInformation =
+                new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3, vertex4));
+        int parallelism = SlotSharingSlotAllocator.getMaxParallelism(jobInformation);
+        assertThat(parallelism, is(4));
     }
 
     @Test

@@ -46,6 +46,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.resourcemanager.RequestTotalResourcesFunction;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.DefaultExecutionVertexOperations;
@@ -91,7 +92,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
-            JobStatusListener jobStatusListener)
+            JobStatusListener jobStatusListener,
+            RequestTotalResourcesFunction requestTotalResourcesFunction)
             throws Exception {
 
         checkState(

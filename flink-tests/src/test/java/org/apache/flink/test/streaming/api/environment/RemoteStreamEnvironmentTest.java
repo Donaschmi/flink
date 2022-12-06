@@ -32,9 +32,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -278,7 +276,8 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
         }
 
         @Override
-        public CompletableFuture<Acknowledge> triggerRescheduling(JobID jobId, ReschedulePlanJSONMapper reschedulePlan) {
+        public CompletableFuture<Acknowledge> triggerRescheduling(
+                JobID jobId, ReschedulePlanJSONMapper reschedulePlan) {
             return null;
         }
 

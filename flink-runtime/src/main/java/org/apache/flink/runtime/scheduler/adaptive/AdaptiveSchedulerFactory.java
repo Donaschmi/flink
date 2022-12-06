@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.resourcemanager.RequestTotalResourcesFunction;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
@@ -80,7 +81,8 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
-            JobStatusListener jobStatusListener)
+            JobStatusListener jobStatusListener,
+            RequestTotalResourcesFunction requestTotalResourcesFunction)
             throws Exception {
         final DeclarativeSlotPool declarativeSlotPool =
                 slotPoolService
@@ -136,7 +138,8 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 mainThreadExecutor,
                 fatalErrorHandler,
                 jobStatusListener,
-                executionGraphFactory);
+                executionGraphFactory,
+                requestTotalResourcesFunction);
     }
 
     @Override

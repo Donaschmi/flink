@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
@@ -37,6 +38,7 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -80,6 +82,8 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                     resourceCounter.add(
                             resourceProfile.getValue().getKey(),
                             resourceProfile.getValue().getValue());
+            LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
+                    .debug("resourceCounter: " + resourceCounter);
         }
         return resourceCounter;
     }
@@ -106,8 +110,11 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
     @Override
     public Optional<VertexParallelismWithSlotSharing> determineParallelism(
-            JobInformation jobInformation, Collection<? extends SlotInfo> freeSlots) {
+            JobInformation jobInformation,
+            Collection<? extends SlotInfo> freeSlots,
+            Collection<ResourceProfile> totalResources) {
         // TODO: This can waste slots if the max parallelism for slot sharing groups is not equal
+
         final int slotsPerSlotSharingGroup =
                 freeSlots.size() / jobInformation.getSlotSharingGroups().size();
 
@@ -116,32 +123,53 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             return Optional.empty();
         }
 
-        final Iterator<? extends SlotInfo> slotIterator = freeSlots.iterator();
+        boolean isUnknown =
+                jobInformation.getSlotSharingGroups().stream()
+                                .flatMap(
+                                        slotSharingGroup ->
+                                                slotSharingGroup.getJobVertexIds().stream())
+                                .map(jobInformation::getVertexInformation)
+                                .anyMatch(
+                                        vertexInformation ->
+                                                ResourceProfile.UNKNOWN.equals(
+                                                        vertexInformation
+                                                                .getSlotSharingGroup()
+                                                                .getResourceProfile()))
+                        && (totalResources != null);
+        int adaptedParallelism = 0;
+        if (!isUnknown) {
+            adaptedParallelism = getAdjustedParallelism(jobInformation, totalResources);
+        }
 
+        final Iterator<? extends SlotInfo> slotIterator = freeSlots.iterator();
+        List<AllocationID> allocatedSlots = new ArrayList<>();
         final Collection<ExecutionSlotSharingGroupAndSlot> assignments = new ArrayList<>();
         final Map<JobVertexID, Integer> allVertexParallelism = new HashMap<>();
+
+        freeSlots.forEach(
+                slot ->
+                        LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
+                                .debug("freeslots: " + slot.getAllocationId()));
 
         for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
             final List<JobInformation.VertexInformation> containedJobVertices =
                     slotSharingGroup.getJobVertexIds().stream()
                             .map(jobInformation::getVertexInformation)
                             .collect(Collectors.toList());
-            containedJobVertices.forEach(
-                    info ->
+
+            final Map<JobVertexID, Integer> vertexParallelism =
+                    determineParallelism(
+                            containedJobVertices,
+                            isUnknown ? slotsPerSlotSharingGroup : adaptedParallelism);
+
+            vertexParallelism.forEach(
+                    (k, v) ->
                             LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
                                     .debug(
-                                            "test: "
-                                                    + info.getSlotSharingGroup()
-                                                            .getResourceProfile()
-                                                    + " , "
-                                                    + info.getJobVertexID().toHexString()));
-            freeSlots.forEach(
-                    slotInfo ->
-                            LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
-                                    .debug("test1: " + slotInfo.getResourceProfile()));
-            final Map<JobVertexID, Integer> vertexParallelism =
-                    determineParallelism(containedJobVertices, slotsPerSlotSharingGroup);
-
+                                            "Debug mapping: "
+                                                    + k.toHexString()
+                                                    + ":"
+                                                    + v.toString()));
             final Iterable<ExecutionSlotSharingGroup> sharedSlotToVertexAssignment =
                     createExecutionSlotSharingGroups(vertexParallelism);
 
@@ -155,23 +183,22 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                                                         .equals(
                                                                 slotSharingGroup
                                                                         .getResourceProfile()))
+                                .filter(slot -> !allocatedSlots.contains(slot.getAllocationId()))
                                 .findFirst()
                                 .orElse(null);
                 if (slotInfo == null) {
+                    LoggerFactory.getLogger(SlotSharingSlotAllocator.class).debug("No slot");
                     slotInfo = slotIterator.next();
+                } else {
+                    LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
+                            .debug("Adding new slot : " + slotInfo.getAllocationId());
+                    allocatedSlots.add(slotInfo.getAllocationId());
                 }
+                allocatedSlots.forEach(
+                        slot ->
+                                LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
+                                        .debug("debugg: " + slot));
 
-                LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
-                        .debug(
-                                "SlotSharing: "
-                                        + executionSlotSharingGroup.getContainedExecutionVertices()
-                                                .stream()
-                                                .findFirst()
-                                                .orElse(null)
-                                                .getJobVertexId()
-                                                .toHexString()
-                                        + " : "
-                                        + slotSharingGroup.getResourceProfile());
                 assignments.add(
                         new ExecutionSlotSharingGroupAndSlot(executionSlotSharingGroup, slotInfo));
             }
@@ -179,6 +206,22 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         }
 
         return Optional.of(new VertexParallelismWithSlotSharing(allVertexParallelism, assignments));
+    }
+
+    @VisibleForTesting
+    public static int getMaxParallelism(JobInformation jobInformation) {
+        int max = 0;
+        for (SlotSharingGroup slot : jobInformation.getSlotSharingGroups()) {
+            max =
+                    Math.max(
+                            max,
+                            slot.getJobVertexIds().stream()
+                                    .map(jobInformation::getVertexInformation)
+                                    .map(JobInformation.VertexInformation::getParallelism)
+                                    .max(Comparator.naturalOrder())
+                                    .get());
+        }
+        return max;
     }
 
     private static Map<JobVertexID, Integer> determineParallelism(
@@ -191,6 +234,49 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         }
 
         return vertexParallelism;
+    }
+
+    public static int getAdjustedParallelism(
+            JobInformation jobInformation, Collection<ResourceProfile> totalResources) {
+        // Get the absolute max parallelism among all operators
+        int currentParallelism = getMaxParallelism(jobInformation);
+        ResourceCounter requiredResources = ResourceCounter.empty();
+
+        while (currentParallelism != 0) {
+            LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
+                    .debug("currentParallelism: " + currentParallelism);
+            for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
+                int finalCurrentParallelism = currentParallelism;
+                final int parallelism =
+                        slotSharingGroup.getJobVertexIds().stream()
+                                .map(jobInformation::getVertexInformation)
+                                .map(
+                                        vertexInformation ->
+                                                Math.min(
+                                                        vertexInformation.getParallelism(),
+                                                        finalCurrentParallelism))
+                                .max(Comparator.naturalOrder())
+                                .get();
+                requiredResources =
+                        requiredResources.add(slotSharingGroup.getResourceProfile(), parallelism);
+            }
+
+            LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
+                    .debug("Matching configuration: " + requiredResources);
+            if (AllocatorUtils.canNewRequirementBeFulfilled(
+                    (List<ResourceProfile>) totalResources, requiredResources)) {
+                LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
+                        .debug(
+                                "found working allocation for parallelism: "
+                                        + currentParallelism
+                                        + " , "
+                                        + currentParallelism);
+                return currentParallelism;
+            }
+            currentParallelism--;
+            requiredResources = ResourceCounter.empty();
+        }
+        return 0;
     }
 
     private static Iterable<ExecutionSlotSharingGroup> createExecutionSlotSharingGroups(

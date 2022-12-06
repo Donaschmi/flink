@@ -192,7 +192,7 @@ public class TestingSchedulerNG implements SchedulerNG {
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            ReschedulePlanJSONMapper[] reschedulingPlan,
+            ReschedulePlanJSONMapper reschedulingPlan,
             JobMasterGateway gateway,
             Set<ResourceID> resourceIDS) {
         return null;

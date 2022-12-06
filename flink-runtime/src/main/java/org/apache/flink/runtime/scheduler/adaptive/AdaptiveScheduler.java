@@ -41,7 +41,6 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ReschedulePlanJSONMapper;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
@@ -85,6 +84,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
+import org.apache.flink.runtime.resourcemanager.RequestTotalResourcesFunction;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
@@ -99,7 +99,7 @@ import org.apache.flink.runtime.scheduler.SchedulerUtils;
 import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
-import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtils;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
@@ -128,19 +128,21 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * A {@link SchedulerNG} implementation that uses the declarative resource management and
@@ -207,6 +209,8 @@ public class AdaptiveScheduler
 
     private final ExecutionGraphFactory executionGraphFactory;
 
+    private final RequestTotalResourcesFunction requestTotalResourcesFunction;
+
     private State state = new Created(this, LOG);
 
     private boolean isTransitioningState = false;
@@ -223,6 +227,8 @@ public class AdaptiveScheduler
     private final DeploymentStateTimeMetrics deploymentTimeMetrics;
 
     private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
+
+    private final boolean isFineGrainedResourceManagementEnabled;
 
     public AdaptiveScheduler(
             JobGraph jobGraph,
@@ -241,9 +247,9 @@ public class AdaptiveScheduler
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
             JobStatusListener jobStatusListener,
-            ExecutionGraphFactory executionGraphFactory)
+            ExecutionGraphFactory executionGraphFactory,
+            RequestTotalResourcesFunction requestTotalResourcesFunction)
             throws JobExecutionException {
-
         assertPreconditions(jobGraph);
 
         this.executionMode = configuration.get(JobManagerOptions.SCHEDULER_MODE);
@@ -305,6 +311,12 @@ public class AdaptiveScheduler
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(
                         configuration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
+
+        // this.isFineGrainedResourceManagementEnabled =
+        //        ClusterOptions.isFineGrainedResourceManagementEnabled(configuration);
+        this.isFineGrainedResourceManagementEnabled = false;
+
+        this.requestTotalResourcesFunction = requestTotalResourcesFunction;
     }
 
     private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
@@ -641,48 +653,39 @@ public class AdaptiveScheduler
 
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
-            ReschedulePlanJSONMapper reschedulePlan,
-            JobMasterGateway gateway,
-            Set<ResourceID> resourceIDS) {
+            ReschedulePlanJSONMapper reschedulePlan, JobMasterGateway gateway) {
         Map<JobVertexID, SlotSharingGroup> reschedulePlanMapped =
                 convertJSONMapperToMap(reschedulePlan);
 
-        for (JobInformation.VertexInformation vertex : jobInformation.getVertices()) {
-            LOG.debug(vertex.getJobVertexID().toHexString());
-            LOG.debug(
-                    jobInformation
-                            .getJobGraph()
-                            .findVertexByID(vertex.getJobVertexID())
-                            .getSlotSharingGroup()
-                            .getResourceProfile()
-                            .toString());
+        List<ResourceProfile> totalResources =
+                (List<ResourceProfile>) requestTotalResourcesFunction.requestTotalResources();
+        LOG.debug("TOTAL: " + Arrays.toString(totalResources.toArray()));
+        if (!AllocatorUtils.canNewRequirementBeFulfilled(
+                totalResources,
+                new HashSet<>(reschedulePlanMapped.values())
+                        .stream()
+                                .map(SlotSharingGroup::getResourceProfile)
+                                .collect(Collectors.toList()))) {
+            LOG.error("Not enough resources for scheduling.");
+            return CompletableFuture.completedFuture(Acknowledge.get());
         }
-
         declarativeSlotPool
                 .getAllSlotsInformation()
                 .iterator()
                 .forEachRemaining(
                         (allocation) -> {
                             gateway.failSlot(
-                                    resourceIDS.iterator().next(),
+                                    allocation.getTaskManagerLocation().getResourceID(),
                                     allocation.getAllocationId(),
-                                    new FlinkException("Failing slot manually"));
+                                    new FlinkException("Releasing old slots"));
                         });
-        for (JobInformation.VertexInformation vertex : jobInformation.getVertices()) {
-            SlotSharingGroup slotSharingGroup = reschedulePlanMapped.get(vertex.getJobVertexID());
-            LOG.debug(vertex.getJobVertexID().toHexString());
-            if (slotSharingGroup != null) {
-                LOG.debug(slotSharingGroup.getResourceProfile().toString());
-                jobInformation
-                        .getJobGraph()
-                        .findVertexByID(vertex.getJobVertexID())
-                        .setSlotSharingGroup(slotSharingGroup);
-            }
-        }
+
         state.tryRun(
                 Executing.class,
-                executing -> executing.notifyReschedulingRequest(reschedulePlanMapped),
+                executing ->
+                        executing.notifyReschedulingRequest(reschedulePlanMapped, jobInformation),
                 "triggerRescheduling");
+
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
@@ -837,16 +840,13 @@ public class AdaptiveScheduler
 
     @Override
     public boolean hasSufficientResources() {
-        return slotAllocator
-                .determineParallelism(jobInformation, declarativeSlotPool.getAllSlotsInformation())
-                .isPresent();
+        return determineParallelism(declarativeSlotPool.getAllSlotsInformation()).isPresent();
     }
 
     private VertexParallelism determineParallelism(SlotAllocator slotAllocator)
             throws NoResourceAvailableException {
 
-        return slotAllocator
-                .determineParallelism(jobInformation, declarativeSlotPool.getFreeSlotsInformation())
+        return determineParallelism(declarativeSlotPool.getFreeSlotsInformation())
                 .orElseThrow(
                         () ->
                                 new NoResourceAvailableException(
@@ -880,6 +880,7 @@ public class AdaptiveScheduler
     }
 
     private ResourceCounter calculateDesiredResources() {
+        ResourceCounter resourceCounter = null;
         return slotAllocator.calculateRequiredSlots(jobInformation.getVertices());
     }
 
@@ -955,6 +956,7 @@ public class AdaptiveScheduler
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Map<JobVertexID, SlotSharingGroup> reschedulingPlan,
+            JobGraphJobInformation jobInformation,
             Duration backoffTime,
             List<ExceptionHistoryEntry> failureCollection) {
 
@@ -965,6 +967,7 @@ public class AdaptiveScheduler
                         executionGraphHandler,
                         operatorCoordinatorHandler,
                         reschedulingPlan,
+                        jobInformation,
                         LOG,
                         backoffTime,
                         userCodeClassLoader,
@@ -1078,53 +1081,6 @@ public class AdaptiveScheduler
                                         executionGraph, vertexParallelism));
     }
 
-    private CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
-            createExecutionGraphWithSlotSharingGroupsAsync() {
-        final VertexParallelism vertexParallelism;
-        final VertexParallelismStore adjustedParallelismStore;
-
-        try {
-            vertexParallelism = determineParallelism(slotAllocator);
-            JobGraph adjustedJobGraph = jobInformation.copyJobGraph();
-            ResourceProfile resourceProfile =
-                    ResourceProfile.newBuilder()
-                            .setCpuCores(1)
-                            .setManagedMemoryMB(200)
-                            .setTaskHeapMemoryMB(150)
-                            .build();
-            SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-            slotSharingGroup.setResourceProfile(resourceProfile);
-            for (JobVertex vertex : adjustedJobGraph.getVertices()) {
-                JobVertexID id = vertex.getID();
-
-                // use the determined "available parallelism" to use
-                // the resources we have access to
-                vertex.setParallelism(vertexParallelism.getParallelism(id));
-                vertex.setSlotSharingGroup(slotSharingGroup);
-            }
-
-            // use the originally configured max parallelism
-            // as the default for consistent runs
-            adjustedParallelismStore =
-                    computeVertexParallelismStoreForExecution(
-                            adjustedJobGraph,
-                            executionMode,
-                            (vertex) -> {
-                                VertexParallelismInformation vertexParallelismInfo =
-                                        initialParallelismStore.getParallelismInfo(vertex.getID());
-                                return vertexParallelismInfo.getMaxParallelism();
-                            });
-        } catch (Exception exception) {
-            return FutureUtils.completedExceptionally(exception);
-        }
-
-        return createExecutionGraphAndRestoreStateAsync(adjustedParallelismStore)
-                .thenApply(
-                        executionGraph ->
-                                CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
-                                        executionGraph, vertexParallelism));
-    }
-
     @Override
     public CreatingExecutionGraph.AssignmentResult tryToAssignSlots(
             CreatingExecutionGraph.ExecutionGraphWithVertexParallelism
@@ -1205,8 +1161,7 @@ public class AdaptiveScheduler
 
         if (availableSlots > 0) {
             final Optional<? extends VertexParallelism> potentialNewParallelism =
-                    slotAllocator.determineParallelism(
-                            jobInformation, declarativeSlotPool.getAllSlotsInformation());
+                    determineParallelism(declarativeSlotPool.getAllSlotsInformation());
 
             if (potentialNewParallelism.isPresent()) {
                 int currentCumulativeParallelism = getCurrentCumulativeParallelism(executionGraph);
@@ -1234,6 +1189,16 @@ public class AdaptiveScheduler
     private static int getCumulativeParallelism(VertexParallelism potentialNewParallelism) {
         return potentialNewParallelism.getMaxParallelismForVertices().values().stream()
                 .reduce(0, Integer::sum);
+    }
+
+    private Optional<? extends VertexParallelism> determineParallelism(
+            Collection<? extends SlotInfo> slotInformation) {
+        return slotAllocator.determineParallelism(
+                jobInformation,
+                slotInformation,
+                requestTotalResourcesFunction.isGatewayAvailable()
+                        ? requestTotalResourcesFunction.requestTotalResources()
+                        : null);
     }
 
     @Override
