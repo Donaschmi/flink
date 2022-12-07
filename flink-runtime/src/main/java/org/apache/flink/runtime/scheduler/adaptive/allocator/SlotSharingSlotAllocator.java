@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.scheduler.adaptive.JobGraphJobInformation;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
@@ -47,6 +48,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /** {@link SlotAllocator} implementation that supports slot sharing. */
 public class SlotSharingSlotAllocator implements SlotAllocator {
@@ -74,14 +76,32 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
     @Override
     public ResourceCounter calculateRequiredSlots(
-            Iterable<JobInformation.VertexInformation> vertices) {
+            JobGraphJobInformation jobInformation, Collection<ResourceProfile> totalResources) {
+        int parallelism = 0;
+        if ((totalResources != null)
+                && StreamSupport.stream(jobInformation.getVertices().spliterator(), false)
+                        .noneMatch(
+                                vertexInformation ->
+                                        vertexInformation
+                                                .getSlotSharingGroup()
+                                                .getResourceProfile()
+                                                .equals(ResourceProfile.UNKNOWN))) {
+            parallelism = getAdjustedParallelism(jobInformation, totalResources);
+
+            LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
+                    .debug("found parallelism: " + parallelism);
+        }
         ResourceCounter resourceCounter = ResourceCounter.empty();
         for (Map.Entry<SlotSharingGroupId, ImmutablePair<ResourceProfile, Integer>>
-                resourceProfile : getMaxParallelismForSlotSharingGroups(vertices).entrySet()) {
+                resourceProfile :
+                        getMaxParallelismForSlotSharingGroups(jobInformation.getVertices())
+                                .entrySet()) {
             resourceCounter =
                     resourceCounter.add(
                             resourceProfile.getValue().getKey(),
-                            resourceProfile.getValue().getValue());
+                            parallelism == 0
+                                    ? resourceProfile.getValue().getValue()
+                                    : Math.min(resourceProfile.getValue().getValue(), parallelism));
             LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
                     .debug("resourceCounter: " + resourceCounter);
         }

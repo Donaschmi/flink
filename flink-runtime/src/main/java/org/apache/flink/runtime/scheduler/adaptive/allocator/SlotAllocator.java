@@ -19,6 +19,7 @@ package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.adaptive.JobGraphJobInformation;
 import org.apache.flink.runtime.util.ResourceCounter;
 
 import java.util.Collection;
@@ -30,15 +31,17 @@ public interface SlotAllocator {
     /**
      * Calculates the total resources required for scheduling the given vertices.
      *
-     * @param vertices vertices to schedule
+     * @param jobInformation job information
      * @return required resources
      */
-    ResourceCounter calculateRequiredSlots(Iterable<JobInformation.VertexInformation> vertices);
+    ResourceCounter calculateRequiredSlots(
+            JobGraphJobInformation jobInformation, Collection<ResourceProfile> totalResources);
 
     /**
      * Determines the parallelism at which the vertices could be scheduled given the collection of
      * slots. This method may be called with any number of slots providing any amount of resources,
-     * irrespective of what {@link #calculateRequiredSlots(Iterable)} returned.
+     * irrespective of what {@link #calculateRequiredSlots(JobGraphJobInformation, Collection)}
+     * returned.
      *
      * <p>If a {@link VertexParallelism} is returned then it covers all vertices contained in the
      * given job information.
