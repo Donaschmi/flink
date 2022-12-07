@@ -880,8 +880,11 @@ public class AdaptiveScheduler
     }
 
     private ResourceCounter calculateDesiredResources() {
-        ResourceCounter resourceCounter = null;
-        return slotAllocator.calculateRequiredSlots(jobInformation.getVertices());
+        return slotAllocator.calculateRequiredSlots(
+                jobInformation,
+                requestTotalResourcesFunction.isGatewayAvailable()
+                        ? requestTotalResourcesFunction.requestTotalResources()
+                        : null);
     }
 
     @Override
