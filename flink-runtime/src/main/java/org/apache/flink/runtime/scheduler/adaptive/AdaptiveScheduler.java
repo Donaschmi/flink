@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
@@ -228,7 +229,7 @@ public class AdaptiveScheduler
 
     private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
 
-    private final boolean isFineGrainedResourceManagementEnabled;
+    private final boolean isFineGrainedSchedulerEnabled;
 
     public AdaptiveScheduler(
             JobGraph jobGraph,
@@ -312,9 +313,8 @@ public class AdaptiveScheduler
                 new BoundedFIFOQueue<>(
                         configuration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
 
-        // this.isFineGrainedResourceManagementEnabled =
-        //        ClusterOptions.isFineGrainedResourceManagementEnabled(configuration);
-        this.isFineGrainedResourceManagementEnabled = false;
+        this.isFineGrainedSchedulerEnabled =
+                ClusterOptions.isFineGrainedSchedulerEnabled(configuration);
 
         this.requestTotalResourcesFunction = requestTotalResourcesFunction;
     }
@@ -437,10 +437,13 @@ public class AdaptiveScheduler
     }
 
     private void newResourcesAvailable(Collection<? extends PhysicalSlot> physicalSlots) {
-        state.tryRun(
-                ResourceConsumer.class,
-                ResourceConsumer::notifyNewResourcesAvailable,
-                "newResourcesAvailable");
+        LOG.debug("state: " + state.getJobStatus());
+        if (!isFineGrainedSchedulerEnabled && state.getJobStatus() != JobStatus.RUNNING) {
+            state.tryRun(
+                    ResourceConsumer.class,
+                    ResourceConsumer::notifyNewResourcesAvailable,
+                    "newResourcesAvailable");
+        }
     }
 
     @Override

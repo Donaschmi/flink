@@ -230,18 +230,14 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
     @VisibleForTesting
     public static int getMaxParallelism(JobInformation jobInformation) {
-        int max = 0;
-        for (SlotSharingGroup slot : jobInformation.getSlotSharingGroups()) {
-            max =
-                    Math.max(
-                            max,
-                            slot.getJobVertexIds().stream()
-                                    .map(jobInformation::getVertexInformation)
-                                    .map(JobInformation.VertexInformation::getParallelism)
-                                    .max(Comparator.naturalOrder())
-                                    .get());
-        }
-        return max;
+        return jobInformation.getSlotSharingGroups().stream()
+                .flatMap(
+                        (SlotSharingGroup slotSharingGroup) ->
+                                slotSharingGroup.getJobVertexIds().stream())
+                .map(jobInformation::getVertexInformation)
+                .map(JobInformation.VertexInformation::getParallelism)
+                .max(Comparator.naturalOrder())
+                .get();
     }
 
     private static Map<JobVertexID, Integer> determineParallelism(

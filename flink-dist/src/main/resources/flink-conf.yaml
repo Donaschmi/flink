@@ -92,9 +92,9 @@ taskmanager.numberOfTaskSlots: 1
 
 parallelism.default: 1
 
-
 jobmanager.scheduler: adaptive
 cluster.fine-grained-resource-management.enabled: true
+cluster.fine-grained-scheduler.enabled: true
 state.backend.rocksdb.use-direct-reads: true
 state.backend.rocksdb.use-direct-writes: true
 

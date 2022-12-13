@@ -145,6 +145,13 @@ public class ClusterOptions {
                             "Defines whether the cluster uses fine-grained resource management.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Boolean> ENABLE_FINE_GRAINED_SCHEDULER =
+            ConfigOptions.key("cluster.fine-grained-scheduler.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Defines whether the cluster uses fine-grained scheduler.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Boolean> FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING =
             ConfigOptions.key("fine-grained.shuffle-mode.all-blocking")
                     .booleanType()
@@ -230,6 +237,14 @@ public class ClusterOptions {
     public static boolean isFineGrainedResourceManagementEnabled(Configuration configuration) {
         if (configuration.contains(ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT)) {
             return configuration.get(ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT);
+        } else {
+            return System.getProperties().containsKey("flink.tests.enable-fine-grained");
+        }
+    }
+
+    public static boolean isFineGrainedSchedulerEnabled(Configuration configuration) {
+        if (configuration.contains(ENABLE_FINE_GRAINED_SCHEDULER)) {
+            return configuration.get(ENABLE_FINE_GRAINED_SCHEDULER);
         } else {
             return System.getProperties().containsKey("flink.tests.enable-fine-grained");
         }
