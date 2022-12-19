@@ -83,26 +83,26 @@ public class ReschedulePlanJSONMapper implements Serializable {
 
     public static class SSGMapping implements Serializable {
         private int index;
-        private double cpu;
-        private int managed;
-        private int heap;
-        private int network;
-        private int offHeap;
+        private double cpuCores;
+        private int managedMemory;
+        private int taskHeapMemory;
+        private int networkMemory;
+        private int taskOffHeapMemory;
 
         @JsonCreator
         SSGMapping(
                 @JsonProperty("index") int index,
-                @JsonProperty("cpu") double cpu,
-                @JsonProperty("managed") int managed,
-                @JsonProperty("heap") int heap,
-                @JsonProperty("network") int network,
-                @JsonProperty("offHeap") int offHeap) {
+                @JsonProperty("cpuCores") double cpuCores,
+                @JsonProperty("managedMemory") int managedMemory,
+                @JsonProperty("taskHeapMemory") int taskHeapMemory,
+                @JsonProperty("networkMemory") int networkMemory,
+                @JsonProperty("taskOffHeapMemory") int taskOffHeapMemory) {
             this.index = index;
-            this.cpu = cpu;
-            this.managed = managed;
-            this.heap = heap;
-            this.network = network;
-            this.offHeap = offHeap;
+            this.cpuCores = cpuCores;
+            this.managedMemory = managedMemory;
+            this.taskHeapMemory = taskHeapMemory;
+            this.networkMemory = networkMemory;
+            this.taskOffHeapMemory = taskOffHeapMemory;
         }
 
         public int getIndex() {
@@ -113,44 +113,44 @@ public class ReschedulePlanJSONMapper implements Serializable {
             this.index = index;
         }
 
-        public double getCPU() {
-            return cpu;
+        public double getCpuCores() {
+            return cpuCores;
         }
 
-        public void setCPU(double cpu) {
-            this.cpu = cpu;
+        public void setCpuCores(double cpuCores) {
+            this.cpuCores = cpuCores;
         }
 
-        public int getManaged() {
-            return managed;
+        public int getManagedMemory() {
+            return managedMemory;
         }
 
-        public void setManaged(int managed) {
-            this.managed = managed;
+        public void setManagedMemory(int managedMemory) {
+            this.managedMemory = managedMemory;
         }
 
-        public int getHeap() {
-            return heap;
+        public int getTaskHeapMemory() {
+            return taskHeapMemory;
         }
 
-        public void setHeap(int heap) {
-            this.heap = heap;
+        public void setTaskHeapMemory(int taskHeapMemory) {
+            this.taskHeapMemory = taskHeapMemory;
         }
 
-        public int getNetwork() {
-            return network;
+        public int getNetworkMemory() {
+            return networkMemory;
         }
 
-        public void setNetwork(int network) {
-            this.network = network;
+        public void setNetworkMemory(int networkMemory) {
+            this.networkMemory = networkMemory;
         }
 
-        public int getOffHeap() {
-            return offHeap;
+        public int getTaskOffHeapMemory() {
+            return taskOffHeapMemory;
         }
 
-        public void setOffHeap(int offHeap) {
-            this.offHeap = offHeap;
+        public void setTaskOffHeapMemory(int taskOffHeapMemory) {
+            this.taskOffHeapMemory = taskOffHeapMemory;
         }
 
         @Override
@@ -159,15 +159,15 @@ public class ReschedulePlanJSONMapper implements Serializable {
                     + "index="
                     + index
                     + ", cpu="
-                    + cpu
+                    + cpuCores
                     + ", managed="
-                    + managed
+                    + managedMemory
                     + ", heap="
-                    + heap
+                    + taskHeapMemory
                     + ", network="
-                    + network
+                    + networkMemory
                     + ", offHeap="
-                    + offHeap
+                    + taskOffHeapMemory
                     + '}';
         }
     }

@@ -152,6 +152,13 @@ public class ClusterOptions {
                     .withDescription("Defines whether the cluster uses fine-grained scheduler.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Integer> RESCHEDULER_CHECKPOINT_GRACE_PERIOD =
+            ConfigOptions.key("cluster.rescheduler-checkpoint-grace-period")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription("Specifies if there has been no checkpoint made in the last X seconds, one should be created.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Boolean> FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING =
             ConfigOptions.key("fine-grained.shuffle-mode.all-blocking")
                     .booleanType()

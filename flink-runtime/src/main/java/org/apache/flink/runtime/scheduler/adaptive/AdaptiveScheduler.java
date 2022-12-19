@@ -38,6 +38,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -129,7 +130,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -231,6 +231,8 @@ public class AdaptiveScheduler
 
     private final boolean isFineGrainedSchedulerEnabled;
 
+    private final int checkpointGracePeriod;
+
     public AdaptiveScheduler(
             JobGraph jobGraph,
             Configuration configuration,
@@ -315,6 +317,8 @@ public class AdaptiveScheduler
 
         this.isFineGrainedSchedulerEnabled =
                 ClusterOptions.isFineGrainedSchedulerEnabled(configuration);
+
+        this.checkpointGracePeriod = configuration.get(ClusterOptions.RESCHEDULER_CHECKPOINT_GRACE_PERIOD);
 
         this.requestTotalResourcesFunction = requestTotalResourcesFunction;
     }
@@ -662,7 +666,6 @@ public class AdaptiveScheduler
 
         List<ResourceProfile> totalResources =
                 (List<ResourceProfile>) requestTotalResourcesFunction.requestTotalResources();
-        LOG.debug("TOTAL: " + Arrays.toString(totalResources.toArray()));
         if (!AllocatorUtils.canNewRequirementBeFulfilled(
                 totalResources,
                 new HashSet<>(reschedulePlanMapped.values())
@@ -672,6 +675,21 @@ public class AdaptiveScheduler
             LOG.error("Not enough resources for scheduling.");
             return CompletableFuture.completedFuture(Acknowledge.get());
         }
+
+        // Trigger checkpoint
+        try {
+            CompletedCheckpoint checkpoint = this.completedCheckpointStore.getLatestCheckpoint();
+            long lastCheckpoint = 0;
+            if (checkpoint != null) {
+                lastCheckpoint = checkpoint.getCompletionTimestamp();
+            }
+            if ((System.currentTimeMillis() - lastCheckpoint) / 1000 > this.checkpointGracePeriod) {
+                triggerCheckpoint();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         declarativeSlotPool
                 .getAllSlotsInformation()
                 .iterator()
@@ -701,11 +719,11 @@ public class AdaptiveScheduler
             SlotSharingGroup ssg = new SlotSharingGroup();
             ssg.setResourceProfile(
                     ResourceProfile.newBuilder()
-                            .setCpuCores(ssgMapping.getCPU())
-                            .setTaskHeapMemoryMB(ssgMapping.getHeap())
-                            .setManagedMemoryMB(ssgMapping.getManaged())
-                            .setNetworkMemoryMB(ssgMapping.getNetwork())
-                            .setTaskOffHeapMemoryMB(ssgMapping.getOffHeap())
+                            .setCpuCores(ssgMapping.getCpuCores())
+                            .setTaskHeapMemoryMB(ssgMapping.getTaskHeapMemory())
+                            .setManagedMemoryMB(ssgMapping.getManagedMemory())
+                            .setNetworkMemoryMB(ssgMapping.getNetworkMemory())
+                            .setTaskOffHeapMemoryMB(ssgMapping.getTaskOffHeapMemory())
                             .build());
             ssgMap.put(ssgMapping.getIndex(), ssg);
         }
