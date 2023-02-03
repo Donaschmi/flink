@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.adaptive.JobGraphJobInformation;
 import org.apache.flink.runtime.util.ResourceCounter;
 
 import java.util.Collection;
@@ -56,13 +58,15 @@ public class TestingSlotAllocator implements SlotAllocator {
 
     @Override
     public ResourceCounter calculateRequiredSlots(
-            Iterable<JobInformation.VertexInformation> vertices) {
-        return calculateRequiredSlotsFunction.apply(vertices);
+            JobGraphJobInformation jobInformation, Collection<ResourceProfile> totalResources) {
+        return calculateRequiredSlotsFunction.apply(null);
     }
 
     @Override
     public Optional<? extends VertexParallelism> determineParallelism(
-            JobInformation jobInformation, Collection<? extends SlotInfo> slots) {
+            JobInformation jobInformation,
+            Collection<? extends SlotInfo> slots,
+            Collection<ResourceProfile> totalResources) {
         return determineParallelismFunction.apply(jobInformation, slots);
     }
 

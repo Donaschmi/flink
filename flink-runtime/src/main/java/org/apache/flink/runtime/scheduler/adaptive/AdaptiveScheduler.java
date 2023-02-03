@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import jdk.internal.net.http.common.Log;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -130,6 +133,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -661,9 +665,10 @@ public class AdaptiveScheduler
     @Override
     public CompletableFuture<Acknowledge> triggerRescheduling(
             ReschedulePlanJSONMapper reschedulePlan, JobMasterGateway gateway) {
-        Map<JobVertexID, SlotSharingGroup> reschedulePlanMapped =
+        Map<JobVertexID, ImmutablePair<SlotSharingGroup, Integer>> reschedulePlanMapped =
                 convertJSONMapperToMap(reschedulePlan);
 
+        /**
         List<ResourceProfile> totalResources =
                 (List<ResourceProfile>) requestTotalResourcesFunction.requestTotalResources();
         if (!AllocatorUtils.canNewRequirementBeFulfilled(
@@ -674,6 +679,17 @@ public class AdaptiveScheduler
                                 .collect(Collectors.toList()))) {
             LOG.error("Not enough resources for scheduling.");
             return CompletableFuture.completedFuture(Acknowledge.get());
+        }*/
+        for (JobVertex jobVertex :
+                jobInformation.getJobGraph().getVertices()) {
+            Optional<ReschedulePlanJSONMapper.VertexMapping> parallelism =
+                    Arrays.stream(reschedulePlan.getVertexMapping())
+                            .filter(v -> v.getVertexID().equals(jobVertex.getID().toHexString())).findFirst();
+            parallelism.ifPresent(vertexMapping -> LOG.debug("Changing job vertex {} parallelism from {} to {}",
+                    jobVertex.getID(),
+                    jobVertex.getParallelism(),
+                    parallelism.get().getParallelism()));
+            parallelism.ifPresent(vertexMapping -> jobVertex.setParallelism(vertexMapping.getParallelism()));
         }
 
         // Trigger checkpoint
@@ -711,9 +727,9 @@ public class AdaptiveScheduler
     }
 
     @VisibleForTesting
-    static Map<JobVertexID, SlotSharingGroup> convertJSONMapperToMap(
+    static Map<JobVertexID, ImmutablePair<SlotSharingGroup, Integer>> convertJSONMapperToMap(
             ReschedulePlanJSONMapper plan) {
-        Map<JobVertexID, SlotSharingGroup> map = new HashMap<>();
+        Map<JobVertexID, ImmutablePair<SlotSharingGroup, Integer>> map = new HashMap<>();
         Map<Integer, SlotSharingGroup> ssgMap = new HashMap<>();
         for (ReschedulePlanJSONMapper.SSGMapping ssgMapping : plan.getSsgMapping()) {
             SlotSharingGroup ssg = new SlotSharingGroup();
@@ -729,7 +745,7 @@ public class AdaptiveScheduler
         }
 
         for (ReschedulePlanJSONMapper.VertexMapping vertex : plan.getVertexMapping()) {
-            map.put(JobVertexID.fromHexString(vertex.getVertexID()), ssgMap.get(vertex.getSsg()));
+            map.put(JobVertexID.fromHexString(vertex.getVertexID()), new ImmutablePair<SlotSharingGroup, Integer>(ssgMap.get(vertex.getSsg()), vertex.getParallelism()));
         }
         return map;
     }
@@ -979,7 +995,7 @@ public class AdaptiveScheduler
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
-            Map<JobVertexID, SlotSharingGroup> reschedulingPlan,
+            Map<JobVertexID, ImmutablePair<SlotSharingGroup, Integer>> reschedulingPlan,
             JobGraphJobInformation jobInformation,
             Duration backoffTime,
             List<ExceptionHistoryEntry> failureCollection) {
@@ -1077,7 +1093,11 @@ public class AdaptiveScheduler
                                 .getSlotSharingGroup()
                                 .getResourceProfile()
                                 .toString());
-
+                LOG.debug("{} :{}", jobInformation
+                                .getJobGraph()
+                                .findVertexByID(id)
+                                .getParallelism(),
+                        vertexParallelism.getParallelism(id));
                 // use the determined "available parallelism" to use
                 // the resources we have access to
                 vertex.setParallelism(vertexParallelism.getParallelism(id));

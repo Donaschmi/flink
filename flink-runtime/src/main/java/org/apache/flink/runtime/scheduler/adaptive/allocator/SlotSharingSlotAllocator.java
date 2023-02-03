@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -38,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -99,9 +101,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             resourceCounter =
                     resourceCounter.add(
                             resourceProfile.getValue().getKey(),
-                            parallelism == 0
-                                    ? resourceProfile.getValue().getValue()
-                                    : Math.min(resourceProfile.getValue().getValue(), parallelism));
+                            resourceProfile.getValue().getValue());
             LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
                     .debug("resourceCounter: " + resourceCounter);
         }
@@ -161,6 +161,8 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             adaptedParallelism = getAdjustedParallelism(jobInformation, totalResources);
         }
 
+        JobGraphJobInformation jobGraphJobInformation = (JobGraphJobInformation) jobInformation;
+
         final Iterator<? extends SlotInfo> slotIterator = freeSlots.iterator();
         List<AllocationID> allocatedSlots = new ArrayList<>();
         final Collection<ExecutionSlotSharingGroupAndSlot> assignments = new ArrayList<>();
@@ -176,12 +178,11 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                     slotSharingGroup.getJobVertexIds().stream()
                             .map(jobInformation::getVertexInformation)
                             .collect(Collectors.toList());
-
-            final Map<JobVertexID, Integer> vertexParallelism =
-                    determineParallelism(
-                            containedJobVertices,
-                            isUnknown ? slotsPerSlotSharingGroup : adaptedParallelism);
-
+            final Map<JobVertexID, Integer> vertexParallelism = new HashMap<>();
+            for (JobInformation.VertexInformation vertex :
+                    containedJobVertices) {
+                vertexParallelism.put(vertex.getJobVertexID(), jobGraphJobInformation.getJobGraph().findVertexByID(vertex.getJobVertexID()).getParallelism());
+            }
             vertexParallelism.forEach(
                     (k, v) ->
                             LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
@@ -230,12 +231,9 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
     @VisibleForTesting
     public static int getMaxParallelism(JobInformation jobInformation) {
-        return jobInformation.getSlotSharingGroups().stream()
-                .flatMap(
-                        (SlotSharingGroup slotSharingGroup) ->
-                                slotSharingGroup.getJobVertexIds().stream())
-                .map(jobInformation::getVertexInformation)
-                .map(JobInformation.VertexInformation::getParallelism)
+        JobGraphJobInformation jobGraphJobInformation = (JobGraphJobInformation) jobInformation;
+        return StreamSupport.stream(jobGraphJobInformation.getJobGraph().getVertices().spliterator(), false)
+                .map(JobVertex::getParallelism)
                 .max(Comparator.naturalOrder())
                 .get();
     }

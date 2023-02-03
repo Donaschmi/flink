@@ -52,11 +52,13 @@ public class ReschedulePlanJSONMapper implements Serializable {
     public static class VertexMapping implements Serializable {
         private String vertexID;
         private int ssg;
+        private int parallelism;
 
         @JsonCreator
-        VertexMapping(@JsonProperty("vertexID") String vertexID, @JsonProperty("ssg") int ssg) {
+        VertexMapping(@JsonProperty("vertexID") String vertexID, @JsonProperty("ssg") int ssg, @JsonProperty("parallelism") int parallelism) {
             this.vertexID = vertexID;
             this.ssg = ssg;
+            this.parallelism = parallelism;
         }
 
         public String getVertexID() {
@@ -75,9 +77,21 @@ public class ReschedulePlanJSONMapper implements Serializable {
             this.ssg = ssg;
         }
 
+        public int getParallelism() {
+            return parallelism;
+        }
+
+        public void setParallelism(int parallelism) {
+            this.parallelism = parallelism;
+        }
+
         @Override
         public String toString() {
-            return "VertexMapping{" + "vertexID='" + vertexID + '\'' + ", ssg=" + ssg + '}';
+            return "VertexMapping{" +
+                    "vertexID='" + vertexID + '\'' +
+                    ", ssg=" + ssg +
+                    ", parallelism=" + parallelism +
+                    '}';
         }
     }
 

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -158,7 +160,7 @@ public interface StateTransitions {
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Map<JobVertexID, SlotSharingGroup> reschedulingPlan,
+                Map<JobVertexID, ImmutablePair<SlotSharingGroup, Integer>> reschedulingPlan,
                 JobGraphJobInformation jobInformation,
                 Duration backoffTime,
                 List<ExceptionHistoryEntry> failureCollection);

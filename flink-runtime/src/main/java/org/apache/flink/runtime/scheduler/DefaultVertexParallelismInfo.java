@@ -95,9 +95,6 @@ public class DefaultVertexParallelismInfo implements VertexParallelismInformatio
         Preconditions.checkArgument(
                 parallelism <= maxParallelism,
                 "Vertex's parallelism should be smaller than or equal to vertex's max parallelism.");
-        Preconditions.checkState(
-                this.parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
-                "Vertex's parallelism can be set only if the vertex's parallelism was not decided yet.");
         this.parallelism = parallelism;
     }
 

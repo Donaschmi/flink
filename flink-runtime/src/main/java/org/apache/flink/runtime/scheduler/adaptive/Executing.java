@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
@@ -139,7 +141,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     }
 
     public void notifyReschedulingRequest(
-            Map<JobVertexID, SlotSharingGroup> reschedulePlanMapped,
+            Map<JobVertexID, ImmutablePair<SlotSharingGroup, Integer>> reschedulePlanMapped,
             JobGraphJobInformation jobInformation) {
         getLogger().info("Received rescheduling trigger.");
 

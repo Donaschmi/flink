@@ -1,7 +1,10 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
@@ -11,6 +14,7 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -33,7 +37,7 @@ public class Rescheduling extends StateWithExecutionGraph {
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
-            Map<JobVertexID, SlotSharingGroup> reschedulingPlan,
+            Map<JobVertexID, ImmutablePair<SlotSharingGroup, Integer>> reschedulingPlan,
             JobGraphJobInformation jobInformation,
             Logger logger,
             Duration backoffTime,
@@ -53,14 +57,16 @@ public class Rescheduling extends StateWithExecutionGraph {
         getExecutionGraph().cancel();
 
         for (JobInformation.VertexInformation vertex : jobInformation.getVertices()) {
-            SlotSharingGroup slotSharingGroup = reschedulingPlan.get(vertex.getJobVertexID());
+            SlotSharingGroup slotSharingGroup = reschedulingPlan.get(vertex.getJobVertexID()).getLeft();
             if (slotSharingGroup != null) {
                 jobInformation
                         .getJobGraph()
                         .findVertexByID(vertex.getJobVertexID())
                         .setSlotSharingGroup(slotSharingGroup);
             }
+            jobInformation.setVertexParallelism(vertex.getJobVertexID(), reschedulingPlan.get(vertex.getJobVertexID()).getRight());
         }
+
     }
 
     @Override
@@ -124,7 +130,7 @@ public class Rescheduling extends StateWithExecutionGraph {
         private final ExecutionGraph executionGraph;
         private final ExecutionGraphHandler executionGraphHandler;
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
-        private final Map<JobVertexID, SlotSharingGroup> reschedulingPlan;
+        private final Map<JobVertexID, ImmutablePair<SlotSharingGroup, Integer>> reschedulingPlan;
         private final Duration backoffTime;
         private final ClassLoader userCodeClassLoader;
         private final List<ExceptionHistoryEntry> failureCollection;
@@ -134,7 +140,7 @@ public class Rescheduling extends StateWithExecutionGraph {
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Map<JobVertexID, SlotSharingGroup> reschedulingPlan,
+                Map<JobVertexID, ImmutablePair<SlotSharingGroup, Integer>> reschedulingPlan,
                 JobGraphJobInformation jobInformation,
                 Logger log,
                 Duration backoffTime,

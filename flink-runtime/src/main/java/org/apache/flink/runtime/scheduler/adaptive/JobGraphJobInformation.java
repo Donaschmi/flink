@@ -82,6 +82,10 @@ public class JobGraphJobInformation implements JobInformation {
                 jobGraph.getVertices(), (vertex) -> getVertexInformation(vertex.getID()));
     }
 
+    public void setVertexParallelism(JobVertexID jobVertexId, int parallelism) {
+        vertexParallelismStore.getParallelismInfo(jobVertexId).setParallelism(parallelism);
+    }
+
     /** Returns a copy of a jobGraph that can be mutated. */
     public JobGraph copyJobGraph() throws IOException, ClassNotFoundException {
         return InstantiationUtil.clone(jobGraph);
