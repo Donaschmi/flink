@@ -28,6 +28,7 @@ import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 

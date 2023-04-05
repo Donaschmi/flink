@@ -24,6 +24,8 @@ import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
@@ -64,6 +66,8 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
             @Nonnull Collection<TaskManagerLocation> locationPreferences,
             @Nonnull ResourceProfile resourceProfile) {
 
+        LoggerFactory.getLogger(LocationPreferenceSlotSelectionStrategy.class)
+                .debug("LocationPreferenceSlotSelectionStrategy");
         // we build up two indexes, one for resource id and one for host names of the preferred
         // locations.
         final Map<ResourceID, Integer> preferredResourceIDs =

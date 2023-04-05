@@ -22,8 +22,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -73,8 +77,10 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
 
         final List<InternalResourceInfo> registeredResources =
                 getRegisteredResources(taskManagerResourceInfoProvider, resultBuilder);
+        LoggerFactory.getLogger(DefaultResourceAllocationStrategy.class).debug("RegisteredResources: " + registeredResources);
         final List<InternalResourceInfo> pendingResources =
                 getPendingResources(taskManagerResourceInfoProvider, resultBuilder);
+        LoggerFactory.getLogger(DefaultResourceAllocationStrategy.class).debug("pendingResources: " + pendingResources);
 
         for (Map.Entry<JobID, Collection<ResourceRequirement>> resourceRequirements :
                 missingResources.entrySet()) {
@@ -83,6 +89,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             final Collection<ResourceRequirement> unfulfilledJobRequirements =
                     tryFulfillRequirementsForJobWithResources(
                             jobId, resourceRequirements.getValue(), registeredResources);
+            LoggerFactory.getLogger(DefaultResourceAllocationStrategy.class).debug("unfulfilledJobRequirements: " + unfulfilledJobRequirements);
 
             if (!unfulfilledJobRequirements.isEmpty()) {
                 tryFulfillRequirementsForJobWithPendingResources(
@@ -151,7 +158,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             Collection<ResourceRequirement> missingResources,
             List<InternalResourceInfo> registeredResources) {
         Collection<ResourceRequirement> outstandingRequirements = new ArrayList<>();
-
+        Collections.sort((List<ResourceRequirement>) missingResources, new ResourceRequirementComparator());
         for (ResourceRequirement resourceRequirement : missingResources) {
             int numMissingRequirements =
                     tryFulfilledRequirementWithResource(
@@ -226,6 +233,23 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         }
     }
 
+    private static class ResourceRequirementComparator implements Comparator<ResourceRequirement> {
+
+        @Override
+        public int compare(ResourceRequirement o1, ResourceRequirement o2) {
+            if (o1.getResourceProfile().equals(ResourceProfile.UNKNOWN) || o2.getResourceProfile().equals(ResourceProfile.UNKNOWN)){
+                return 0;
+            }
+            if (o1.getResourceProfile().getManagedMemory().getBytes() == o2.getResourceProfile().getManagedMemory().getBytes()) {
+                return 0;
+            }
+            else if (o1.getResourceProfile().getManagedMemory().getBytes() > o2.getResourceProfile().getManagedMemory().getBytes()) {
+                return -1;
+            }
+            return 1;
+        }
+    }
+
     private static class InternalResourceInfo {
         private final ResourceProfile defaultSlotProfile;
         private final BiConsumer<JobID, ResourceProfile> allocationConsumer;
@@ -250,6 +274,14 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             } else {
                 return false;
             }
+        }
+
+        @Override
+        public String toString() {
+            return "InternalResourceInfo{" +
+                    "defaultSlotProfile=" + defaultSlotProfile +
+                    ", availableProfile=" + availableProfile +
+                    '}';
         }
     }
 }

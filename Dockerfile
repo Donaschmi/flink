@@ -6,6 +6,7 @@ COPY --chown=flink:flink flink-dist/target/flink-1.15-SNAPSHOT-bin/flink-1.15-SN
 
 RUN mkdir /opt/flink/plugins/s3-fs-hadoop; \
   cp /opt/flink/opt/flink-s3-fs-hadoop-1.15-SNAPSHOT.jar /opt/flink/plugins/s3-fs-hadoop/
+RUN cp /opt/flink/nexmark/lib/nexmark-flink-0.2-SNAPSHOT.jar /opt/flink/lib/nexmark-flink-0.2-SNAPSHOT.jar
 ENV FLINK_HOME=/opt/flink
 
 # Replace default REST/RPC endpoint bind address to use the container's network interface 

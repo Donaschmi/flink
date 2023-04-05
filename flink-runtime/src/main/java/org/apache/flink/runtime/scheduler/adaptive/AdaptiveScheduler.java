@@ -705,7 +705,6 @@ public class AdaptiveScheduler
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
         declarativeSlotPool
                 .getAllSlotsInformation()
                 .iterator()
@@ -714,7 +713,7 @@ public class AdaptiveScheduler
                             gateway.failSlot(
                                     allocation.getTaskManagerLocation().getResourceID(),
                                     allocation.getAllocationId(),
-                                    new FlinkException("Releasing old slots"));
+                                    new FlinkException("Failing old slots"));
                         });
 
         state.tryRun(

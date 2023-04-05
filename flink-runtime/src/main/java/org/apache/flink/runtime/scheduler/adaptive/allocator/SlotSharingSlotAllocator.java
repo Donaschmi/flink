@@ -209,7 +209,16 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                                 .orElse(null);
                 if (slotInfo == null) {
                     LoggerFactory.getLogger(SlotSharingSlotAllocator.class).debug("No slot");
-                    slotInfo = slotIterator.next();
+                    while (slotIterator.hasNext()) {
+                        SlotInfo slot = slotIterator.next();
+                        if (!allocatedSlots.contains(slot.getAllocationId())) {
+                            slotInfo = slot;
+                            break;
+                        }
+                    }
+                    if (slotInfo == null) {
+                        return Optional.empty();
+                    }
                 } else {
                     LoggerFactory.getLogger(SlotSharingSlotAllocator.class)
                             .debug("Adding new slot : " + slotInfo.getAllocationId());
