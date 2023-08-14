@@ -78,6 +78,8 @@ import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatsCach
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointingStatisticsHandler;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.TaskCheckpointStatisticDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.coordination.ClientCoordinationHandler;
+import org.apache.flink.runtime.rest.handler.job.justin.JustinResourceRequirementsHandler;
+import org.apache.flink.runtime.rest.handler.job.justin.JustinResourceRequirementsUpdateHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.AggregatingJobsMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.AggregatingSubtasksMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.AggregatingTaskManagersMetricsHandler;
@@ -1033,6 +1035,15 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(
                         jobResourceRequirementsUpdateHandler.getMessageHeaders(),
                         jobResourceRequirementsUpdateHandler));
+
+        final JustinResourceRequirementsHandler justinHandler =
+                new JustinResourceRequirementsHandler(leaderRetriever, timeout, responseHeaders);
+        final JustinResourceRequirementsUpdateHandler justinUpdateHandler =
+                new JustinResourceRequirementsUpdateHandler(
+                        leaderRetriever, timeout, responseHeaders);
+
+        handlers.add(Tuple2.of(justinHandler.getMessageHeaders(), justinHandler));
+        handlers.add(Tuple2.of(justinUpdateHandler.getMessageHeaders(), justinUpdateHandler));
 
         handlers.stream()
                 .map(tuple -> tuple.f1)

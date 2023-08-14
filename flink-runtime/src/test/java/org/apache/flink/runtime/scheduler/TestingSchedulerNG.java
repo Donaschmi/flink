@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
@@ -69,6 +70,8 @@ public class TestingSchedulerNG implements SchedulerNG {
     private final Consumer<Throwable> handleGlobalFailureConsumer;
     private final Supplier<JobResourceRequirements> requestJobResourceRequirementsSupplier;
     private final Consumer<JobResourceRequirements> updateJobResourceRequirementsConsumer;
+    private final Supplier<JustinResourceRequirements> requestJustinResourceRequirementsSupplier;
+    private final Consumer<JustinResourceRequirements> updateJustinResourceRequirementsConsumer;
 
     private TestingSchedulerNG(
             CompletableFuture<JobStatus> jobTerminationFuture,
@@ -80,7 +83,9 @@ public class TestingSchedulerNG implements SchedulerNG {
                     triggerCheckpointFunction,
             Consumer<Throwable> handleGlobalFailureConsumer,
             Supplier<JobResourceRequirements> requestJobResourceRequirementsSupplier,
-            Consumer<JobResourceRequirements> updateJobResourceRequirementsConsumer) {
+            Consumer<JobResourceRequirements> updateJobResourceRequirementsConsumer,
+            Supplier<JustinResourceRequirements> requestJustinResourceRequirementsSupplier,
+            Consumer<JustinResourceRequirements> updateJustinResourceRequirementsConsumer) {
         this.jobTerminationFuture = jobTerminationFuture;
         this.startSchedulingRunnable = startSchedulingRunnable;
         this.closeAsyncSupplier = closeAsyncSupplier;
@@ -89,6 +94,8 @@ public class TestingSchedulerNG implements SchedulerNG {
         this.handleGlobalFailureConsumer = handleGlobalFailureConsumer;
         this.requestJobResourceRequirementsSupplier = requestJobResourceRequirementsSupplier;
         this.updateJobResourceRequirementsConsumer = updateJobResourceRequirementsConsumer;
+        this.requestJustinResourceRequirementsSupplier = requestJustinResourceRequirementsSupplier;
+        this.updateJustinResourceRequirementsConsumer = updateJustinResourceRequirementsConsumer;
     }
 
     @Override
@@ -259,6 +266,17 @@ public class TestingSchedulerNG implements SchedulerNG {
         updateJobResourceRequirementsConsumer.accept(jobResourceRequirements);
     }
 
+    @Override
+    public JustinResourceRequirements requestJustinResourceRequirements() {
+        return requestJustinResourceRequirementsSupplier.get();
+    }
+
+    @Override
+    public void updateJustinResourceRequirements(
+            JustinResourceRequirements justinResourceRequirements) {
+        updateJustinResourceRequirementsConsumer.accept(justinResourceRequirements);
+    }
+
     public static Builder newBuilder() {
         return new Builder();
     }
@@ -280,6 +298,14 @@ public class TestingSchedulerNG implements SchedulerNG {
                     throw new UnsupportedOperationException("Not supported.");
                 };
         private Consumer<JobResourceRequirements> updateJobResourceRequirementsConsumer =
+                ignored -> {
+                    throw new UnsupportedOperationException("Not supported.");
+                };
+        private Supplier<JustinResourceRequirements> requestJustinResourceRequirementsSupplier =
+                () -> {
+                    throw new UnsupportedOperationException("Not supported.");
+                };
+        private Consumer<JustinResourceRequirements> updateJustinResourceRequirementsConsumer =
                 ignored -> {
                     throw new UnsupportedOperationException("Not supported.");
                 };
@@ -331,6 +357,20 @@ public class TestingSchedulerNG implements SchedulerNG {
             return this;
         }
 
+        public Builder setRequestJustinResourceRequirementsSupplier(
+                Supplier<JustinResourceRequirements> requestJustinResourceRequirementsSupplier) {
+            this.requestJustinResourceRequirementsSupplier =
+                    requestJustinResourceRequirementsSupplier;
+            return this;
+        }
+
+        public Builder setUpdateJustinResourceRequirementsConsumer(
+                Consumer<JustinResourceRequirements> updateJustinResourceRequirementsConsumer) {
+            this.updateJustinResourceRequirementsConsumer =
+                    updateJustinResourceRequirementsConsumer;
+            return this;
+        }
+
         public TestingSchedulerNG build() {
             return new TestingSchedulerNG(
                     jobTerminationFuture,
@@ -340,7 +380,9 @@ public class TestingSchedulerNG implements SchedulerNG {
                     triggerCheckpointFunction,
                     handleGlobalFailureConsumer,
                     requestJobResourceRequirementsSupplier,
-                    updateJobResourceRequirementsConsumer);
+                    updateJobResourceRequirementsConsumer,
+                    requestJustinResourceRequirementsSupplier,
+                    updateJustinResourceRequirementsConsumer);
         }
     }
 }

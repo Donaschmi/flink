@@ -71,8 +71,10 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
@@ -111,6 +113,7 @@ import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceMinimalI
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.RescalingController;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.justin.JustinVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.util.BoundedFIFOQueue;
@@ -232,6 +235,12 @@ public class AdaptiveScheduler
     private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
     private final Duration slotIdleTimeout;
+
+    private JustinResourceRequirements justinResourceRequirements;
+
+    private boolean justinRescale = false;
+
+    private boolean firstJustinRescale = true;
 
     public AdaptiveScheduler(
             JobGraph jobGraph,
@@ -812,6 +821,7 @@ public class AdaptiveScheduler
 
     @Override
     public void updateJobResourceRequirements(JobResourceRequirements jobResourceRequirements) {
+        this.justinRescale = false;
         if (executionMode == SchedulerExecutionMode.REACTIVE) {
             throw new UnsupportedOperationException(
                     "Cannot change the parallelism of a job running in reactive mode.");
@@ -828,6 +838,63 @@ public class AdaptiveScheduler
                     ResourceListener::onNewResourceRequirements,
                     "Current state does not react to desired parallelism changes.");
         }
+    }
+
+    @Override
+    public JustinResourceRequirements requestJustinResourceRequirements() {
+        final JustinResourceRequirements.Builder builder = JustinResourceRequirements.newBuilder();
+        for (JobInformation.VertexInformation vertex : jobInformation.getVertices()) {
+            builder.setParallelismForJobVertex(
+                    vertex.getJobVertexID(),
+                    vertex.getMinParallelism(),
+                    vertex.getParallelism(),
+                    vertex.getSlotSharingGroup().getResourceProfile());
+        }
+        return builder.build();
+    }
+
+    @Override
+    public void updateJustinResourceRequirements(
+            JustinResourceRequirements justinResourceRequirements) {
+        this.justinRescale = true;
+        this.firstJustinRescale = true;
+        this.justinResourceRequirements = justinResourceRequirements;
+        if (executionMode == SchedulerExecutionMode.REACTIVE) {
+            throw new UnsupportedOperationException(
+                    "Cannot change the parallelism of a job running in reactive mode.");
+        }
+        final Optional<VertexParallelismStore> maybeUpdateVertexParallelismStore =
+                DefaultVertexParallelismStore.applyJustinResourceRequirements(
+                        jobInformation.getVertexParallelismStore(), justinResourceRequirements);
+        for (JobVertexID v : justinResourceRequirements.getJobVertices()) {
+            System.out.println(
+                    maybeUpdateVertexParallelismStore.get().getParallelismInfo(v).toString());
+            LOG.info(maybeUpdateVertexParallelismStore.get().getParallelismInfo(v).toString());
+        }
+
+        if (maybeUpdateVertexParallelismStore.isPresent()) {
+            updateJustinGraphJobInformation(maybeUpdateVertexParallelismStore.get());
+            declareJustinDesiredResources();
+            state.tryRun(
+                    ResourceListener.class,
+                    ResourceListener::onNewResourceRequirements,
+                    "Current state does not react to desired parallelism changes.");
+        }
+    }
+
+    private void updateJustinGraphJobInformation(VertexParallelismStore vertexParallelismStore) {
+        for (JobVertex v : jobGraph.getVertices()) {
+            SlotSharingGroup ssg = new SlotSharingGroup();
+            JustinVertexParallelismInfo justinVertexParallelismInfo =
+                    (JustinVertexParallelismInfo)
+                            vertexParallelismStore.getParallelismInfo(v.getID());
+            ssg.setResourceProfile(justinVertexParallelismInfo.getResourceProfile());
+            v.setSlotSharingGroup(ssg);
+        }
+        this.jobInformation = new JobGraphJobInformation(jobGraph, vertexParallelismStore);
+        jobInformation
+                .getSlotSharingGroups()
+                .forEach(ssg -> LOG.info(ssg + "  " + ssg.getResourceProfile()));
     }
 
     // ----------------------------------------------------------------
@@ -897,7 +964,11 @@ public class AdaptiveScheduler
 
     @Override
     public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {
-        declareDesiredResources();
+        if (!justinRescale) {
+            declareDesiredResources();
+        } else {
+            declareJustinDesiredResources();
+        }
 
         transitionToState(
                 new WaitingForResources.Factory(
@@ -910,6 +981,7 @@ public class AdaptiveScheduler
 
     private void declareDesiredResources() {
         final ResourceCounter newDesiredResources = calculateDesiredResources();
+        LOG.info(String.valueOf(newDesiredResources));
 
         if (!newDesiredResources.equals(this.desiredResources)) {
             this.desiredResources = newDesiredResources;
@@ -919,6 +991,29 @@ public class AdaptiveScheduler
 
     private ResourceCounter calculateDesiredResources() {
         return slotAllocator.calculateRequiredSlots(jobInformation.getVertices());
+    }
+
+    private void declareJustinDesiredResources() {
+        final ResourceCounter newDesiredResources = calculateJustinDesiredResources();
+        LOG.info(String.valueOf(newDesiredResources));
+
+        if (!newDesiredResources.equals(this.desiredResources)) {
+            this.desiredResources = newDesiredResources;
+            declarativeSlotPool.setResourceRequirements(this.desiredResources);
+        }
+    }
+
+    private ResourceCounter calculateJustinDesiredResources() {
+        ResourceCounter resourceCounter = ResourceCounter.empty();
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            resourceCounter =
+                    resourceCounter.add(
+                            this.justinResourceRequirements.getResourceProfile(vertex.getID()),
+                            this.justinResourceRequirements
+                                    .getParallelism(vertex.getID())
+                                    .getUpperBound());
+        }
+        return resourceCounter;
     }
 
     @Override
@@ -1164,6 +1259,13 @@ public class AdaptiveScheduler
 
     @Override
     public boolean shouldRescale(ExecutionGraph executionGraph) {
+        if (justinRescale) {
+            if (firstJustinRescale) {
+                firstJustinRescale = false;
+                return true;
+            }
+            return false;
+        }
         final Optional<VertexParallelism> maybeNewParallelism =
                 slotAllocator.determineParallelism(
                         jobInformation, declarativeSlotPool.getAllSlotsInformation());

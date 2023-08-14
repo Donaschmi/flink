@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 
 /** {@link JobGraphWriter} implementation which does not allow to store {@link JobGraph}. */
 public enum ThrowingJobGraphWriter implements JobGraphWriter {
@@ -34,6 +35,12 @@ public enum ThrowingJobGraphWriter implements JobGraphWriter {
     @Override
     public void putJobResourceRequirements(
             JobID jobId, JobResourceRequirements jobResourceRequirements) {
+        throw new UnsupportedOperationException("Cannot persist job resource requirements.");
+    }
+
+    @Override
+    public void putJustinResourceRequirements(
+            JobID jobId, JustinResourceRequirements justinResourceRequirements) {
         throw new UnsupportedOperationException("Cannot persist job resource requirements.");
     }
 }

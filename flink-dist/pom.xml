@@ -40,12 +40,6 @@ under the License.
 
 		<!-- Flink project binaries -->
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-dist-scala_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -256,12 +250,6 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-streaming-state-machine</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

@@ -77,6 +77,7 @@ import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -2093,6 +2094,70 @@ class JobMasterTest {
             assertThatFuture(jobMasterGateway.requestJobResourceRequirements())
                     .eventuallySucceeds()
                     .isEqualTo(jobResourceRequirements);
+        }
+    }
+
+    @Test
+    public void testJustinResourceRequirementsAreRequestedFromTheScheduler() throws Exception {
+        final JustinResourceRequirements justinResourceRequirements =
+                JustinResourceRequirements.empty();
+        final TestingSchedulerNG scheduler =
+                TestingSchedulerNG.newBuilder()
+                        .setRequestJustinResourceRequirementsSupplier(
+                                () -> justinResourceRequirements)
+                        .build();
+        try (final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withSlotPoolServiceSchedulerFactory(
+                                DefaultSlotPoolServiceSchedulerFactory.create(
+                                        TestingSlotPoolServiceBuilder.newBuilder(),
+                                        new TestingSchedulerNGFactory(scheduler)))
+                        .createJobMaster()) {
+            jobMaster.start();
+            final JobMasterGateway jobMasterGateway =
+                    jobMaster.getSelfGateway(JobMasterGateway.class);
+            assertThatFuture(jobMasterGateway.requestJustinResourceRequirements())
+                    .eventuallySucceeds()
+                    .isEqualTo(justinResourceRequirements);
+        }
+    }
+
+    @Test
+    public void testJustinSuccessfulResourceRequirementsUpdate() throws Exception {
+        final CompletableFuture<JustinResourceRequirements> schedulerUpdateFuture =
+                new CompletableFuture<>();
+        final TestingSchedulerNG scheduler =
+                TestingSchedulerNG.newBuilder()
+                        .setUpdateJustinResourceRequirementsConsumer(
+                                schedulerUpdateFuture::complete)
+                        .build();
+        try (final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withConfiguration(configuration)
+                        .withHighAvailabilityServices(haServices)
+                        .withSlotPoolServiceSchedulerFactory(
+                                DefaultSlotPoolServiceSchedulerFactory.create(
+                                        TestingSlotPoolServiceBuilder.newBuilder(),
+                                        new TestingSchedulerNGFactory(scheduler)))
+                        .createJobMaster()) {
+            jobMaster.start();
+            final JobMasterGateway jobMasterGateway =
+                    jobMaster.getSelfGateway(JobMasterGateway.class);
+
+            final JustinResourceRequirements.Builder justinResourceRequirementsBuilder =
+                    JustinResourceRequirements.newBuilder();
+            for (JobVertex jobVertex : jobGraph.getVertices()) {
+                justinResourceRequirementsBuilder.setParallelismForJobVertex(
+                        jobVertex.getID(), 1, 2, ResourceProfile.ANY);
+            }
+
+            final JustinResourceRequirements newRequirements =
+                    justinResourceRequirementsBuilder.build();
+            final CompletableFuture<Acknowledge> jobMasterUpdateFuture =
+                    jobMasterGateway.updateJustinResourceRequirements(newRequirements);
+
+            assertThatFuture(jobMasterUpdateFuture).eventuallySucceeds();
+            assertThatFuture(schedulerUpdateFuture).eventuallySucceeds().isEqualTo(newRequirements);
         }
     }
 

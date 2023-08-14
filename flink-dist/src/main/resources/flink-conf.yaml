@@ -91,11 +91,17 @@ taskmanager.memory.process.size: 1728m
 
 # The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
 
-taskmanager.numberOfTaskSlots: 1
+taskmanager.numberOfTaskSlots: 4
 
 # The parallelism used for programs that did not specify and other parallelism.
 
 parallelism.default: 1
+
+kubernetes.operator.job.autoscaler.enabled: true
+kubernetes.operator.job.autoscaler.stabilization.interval: 1m
+kubernetes.operator.job.autoscaler.metrics.window: 3m
+pipeline.max-parallelism: 24
+kubernetes.operator.job.autoscaler.target.utilization.boundary: 0.5
 
 # The default file system scheme and authority.
 # 

@@ -21,6 +21,9 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.JobVertexResourceRequirements;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
+import org.apache.flink.runtime.jobgraph.justin.JustinVertexResourceRequirements;
+import org.apache.flink.runtime.scheduler.justin.JustinVertexParallelismInfo;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -67,6 +70,39 @@ public class DefaultVertexParallelismStore implements MutableVertexParallelismSt
                             || oldVertexParallelismInfo.getParallelism() != parallelism;
         }
         return changed ? Optional.of(newVertexParallelismStore) : Optional.empty();
+    }
+
+    /**
+     * Create a new {@link VertexParallelismStore} that reflects given {@link
+     * JobResourceRequirements}.
+     *
+     * @param oldVertexParallelismStore old vertex parallelism store that serves as a base for the
+     *     new one
+     * @param justinResourceRequirements to apply over the old vertex parallelism store
+     * @return new vertex parallelism store iff it was updated
+     */
+    public static Optional<VertexParallelismStore> applyJustinResourceRequirements(
+            VertexParallelismStore oldVertexParallelismStore,
+            JustinResourceRequirements justinResourceRequirements) {
+        final DefaultVertexParallelismStore newVertexParallelismStore =
+                new DefaultVertexParallelismStore();
+        for (final JobVertexID jobVertexId : justinResourceRequirements.getJobVertices()) {
+            final VertexParallelismInformation oldVertexParallelismInfo =
+                    oldVertexParallelismStore.getParallelismInfo(jobVertexId);
+            final JustinVertexResourceRequirements.Parallelism parallelismSettings =
+                    justinResourceRequirements.getParallelism(jobVertexId);
+            final int minParallelism = parallelismSettings.getLowerBound();
+            final int parallelism = parallelismSettings.getUpperBound();
+            newVertexParallelismStore.setParallelismInfo(
+                    jobVertexId,
+                    new JustinVertexParallelismInfo(
+                            minParallelism,
+                            parallelism,
+                            oldVertexParallelismInfo.getMaxParallelism(),
+                            justinResourceRequirements.getResourceProfile(jobVertexId),
+                            RESCALE_MAX_REJECT));
+        }
+        return Optional.of(newVertexParallelismStore);
     }
 
     private final Map<JobVertexID, VertexParallelismInformation> vertexToParallelismInfo =

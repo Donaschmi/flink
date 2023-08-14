@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -221,7 +222,9 @@ public class ResourceProfile implements Serializable {
      * @return The total memory
      */
     public MemorySize getTotalMemory() {
-        throwUnsupportedOperationExceptionIfUnknown();
+        if (this.equals(UNKNOWN)) {
+            return MemorySize.ZERO;
+        }
         return getOperatorsMemory().add(networkMemory);
     }
 
@@ -231,7 +234,9 @@ public class ResourceProfile implements Serializable {
      * @return The operator memory
      */
     public MemorySize getOperatorsMemory() {
-        throwUnsupportedOperationExceptionIfUnknown();
+        if (this.equals(UNKNOWN)) {
+            return MemorySize.ZERO;
+        }
         return taskHeapMemory.add(taskOffHeapMemory).add(managedMemory);
     }
 
@@ -246,7 +251,15 @@ public class ResourceProfile implements Serializable {
     }
 
     private void throwUnsupportedOperationExceptionIfUnknown() {
-        if (this.equals(UNKNOWN)) {
+        StackTraceElement[] stElements = Thread.currentThread().getStackTrace();
+        if (this.equals(UNKNOWN)
+                && Arrays.stream(stElements)
+                        .noneMatch(
+                                stackTraceElement ->
+                                        stackTraceElement
+                                                .getClassName()
+                                                .equals(
+                                                        "org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper"))) {
             throw new UnsupportedOperationException();
         }
     }
