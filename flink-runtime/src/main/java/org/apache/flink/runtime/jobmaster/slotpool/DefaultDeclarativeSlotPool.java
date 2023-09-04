@@ -350,7 +350,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         ResourceProfile previouslyMatchedResourceProfile =
                 Preconditions.checkNotNull(slotToRequirementProfileMappings.get(allocationId));
 
-        if (!previouslyMatchedResourceProfile.equals(requiredSlotProfile)) {
+        if (previouslyMatchedResourceProfile != ResourceProfile.UNKNOWN
+                && !previouslyMatchedResourceProfile.equals(requiredSlotProfile)) {
             // slots can be reserved for a requirement that is not in line with the mapping we
             // computed when the slot was offered, so we have to update the mapping
             updateSlotToRequirementProfileMapping(allocationId, requiredSlotProfile);

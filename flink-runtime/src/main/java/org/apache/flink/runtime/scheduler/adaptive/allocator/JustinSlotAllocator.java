@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -30,6 +29,8 @@ import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
+
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -47,13 +48,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** {@link SlotAllocator} implementation that supports slot sharing. */
-public class SlotSharingSlotAllocator implements SlotAllocator {
+public class JustinSlotAllocator implements SlotAllocator {
 
     public final ReserveSlotFunction reserveSlotFunction;
     public final FreeSlotFunction freeSlotFunction;
     public final IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction;
 
-    private SlotSharingSlotAllocator(
+    private JustinSlotAllocator(
             ReserveSlotFunction reserveSlot,
             FreeSlotFunction freeSlotFunction,
             IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction) {
@@ -62,86 +63,12 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         this.isSlotAvailableAndFreeFunction = isSlotAvailableAndFreeFunction;
     }
 
-    public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
+    public static JustinSlotAllocator createJustinSlotAllocator(
             ReserveSlotFunction reserveSlot,
             FreeSlotFunction freeSlotFunction,
             IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction) {
-        return new SlotSharingSlotAllocator(
+        return new JustinSlotAllocator(
                 reserveSlot, freeSlotFunction, isSlotAvailableAndFreeFunction);
-    }
-
-    @Override
-    public ResourceCounter calculateRequiredSlots(
-            Iterable<JobInformation.VertexInformation> vertices) {
-        int numTotalRequiredSlots = 0;
-        for (SlotSharingGroupMetaInfo slotSharingGroupMetaInfo :
-                SlotSharingGroupMetaInfo.from(vertices).values()) {
-            numTotalRequiredSlots += slotSharingGroupMetaInfo.getMaxUpperBound();
-        }
-        return ResourceCounter.withResource(ResourceProfile.UNKNOWN, numTotalRequiredSlots);
-    }
-
-    @Override
-    public Optional<VertexParallelism> determineParallelism(
-            JobInformation jobInformation, Collection<? extends SlotInfo> freeSlots) {
-
-        final Map<SlotSharingGroupId, SlotSharingGroupMetaInfo> slotSharingGroupMetaInfo =
-                SlotSharingGroupMetaInfo.from(jobInformation.getVertices());
-
-        final int minimumRequiredSlots =
-                slotSharingGroupMetaInfo.values().stream()
-                        .map(SlotSharingGroupMetaInfo::getMinLowerBound)
-                        .reduce(0, Integer::sum);
-
-        if (minimumRequiredSlots > freeSlots.size()) {
-            return Optional.empty();
-        }
-
-        final Map<SlotSharingGroupId, Integer> slotSharingGroupParallelism =
-                determineSlotsPerSharingGroup(
-                        jobInformation,
-                        freeSlots.size(),
-                        minimumRequiredSlots,
-                        slotSharingGroupMetaInfo);
-
-        final Map<JobVertexID, Integer> allVertexParallelism = new HashMap<>();
-
-        for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
-            final List<JobInformation.VertexInformation> containedJobVertices =
-                    slotSharingGroup.getJobVertexIds().stream()
-                            .map(jobInformation::getVertexInformation)
-                            .collect(Collectors.toList());
-
-            final Map<JobVertexID, Integer> vertexParallelism =
-                    determineVertexParallelism(
-                            containedJobVertices,
-                            slotSharingGroupParallelism.get(
-                                    slotSharingGroup.getSlotSharingGroupId()));
-            allVertexParallelism.putAll(vertexParallelism);
-        }
-        return Optional.of(new VertexParallelism(allVertexParallelism));
-    }
-
-    @Override
-    public Optional<JobSchedulingPlan> determineParallelismAndCalculateAssignment(
-            JobInformation jobInformation,
-            Collection<? extends SlotInfo> slots,
-            JobAllocationsInformation jobAllocationsInformation) {
-        return determineParallelism(jobInformation, slots)
-                .map(
-                        parallelism -> {
-                            SlotAssigner slotAssigner =
-                                    jobAllocationsInformation.isEmpty()
-                                            ? new DefaultSlotAssigner()
-                                            : new StateLocalitySlotAssigner();
-                            return new JobSchedulingPlan(
-                                    parallelism,
-                                    slotAssigner.assignSlots(
-                                            jobInformation,
-                                            slots,
-                                            parallelism,
-                                            jobAllocationsInformation));
-                        });
     }
 
     /**
@@ -218,9 +145,79 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     }
 
     @Override
+    public ResourceCounter calculateRequiredSlots(
+            Iterable<JobInformation.VertexInformation> vertices) {
+        return ResourceCounter.empty();
+    }
+
+    @Override
+    public Optional<VertexParallelism> determineParallelism(
+            JobInformation jobInformation, Collection<? extends SlotInfo> freeSlots) {
+
+        final Map<SlotSharingGroupId, SlotSharingGroupMetaInfo> slotSharingGroupMetaInfo =
+                SlotSharingGroupMetaInfo.from(jobInformation.getVertices());
+
+        final int minimumRequiredSlots =
+                slotSharingGroupMetaInfo.values().stream()
+                        .map(SlotSharingGroupMetaInfo::getMinLowerBound)
+                        .reduce(0, Integer::sum);
+
+        if (minimumRequiredSlots > freeSlots.size()) {
+            return Optional.empty();
+        }
+
+        final Map<SlotSharingGroupId, Integer> slotSharingGroupParallelism =
+                determineSlotsPerSharingGroup(
+                        jobInformation,
+                        freeSlots.size(),
+                        minimumRequiredSlots,
+                        slotSharingGroupMetaInfo);
+
+        final Map<JobVertexID, Integer> allVertexParallelism = new HashMap<>();
+
+        for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
+            final List<JobInformation.VertexInformation> containedJobVertices =
+                    slotSharingGroup.getJobVertexIds().stream()
+                            .map(jobInformation::getVertexInformation)
+                            .collect(Collectors.toList());
+
+            final Map<JobVertexID, Integer> vertexParallelism =
+                    determineVertexParallelism(
+                            containedJobVertices,
+                            slotSharingGroupParallelism.get(
+                                    slotSharingGroup.getSlotSharingGroupId()));
+            allVertexParallelism.putAll(vertexParallelism);
+        }
+        return Optional.of(new VertexParallelism(allVertexParallelism));
+    }
+
+    @Override
+    public Optional<JobSchedulingPlan> determineParallelismAndCalculateAssignment(
+            JobInformation jobInformation,
+            Collection<? extends SlotInfo> slots,
+            JobAllocationsInformation jobAllocationsInformation) {
+        return determineParallelism(jobInformation, slots)
+                .map(
+                        parallelism -> {
+                            SlotAssigner slotAssigner =
+                                    jobAllocationsInformation.isEmpty()
+                                            ? new DefaultSlotAssigner()
+                                            : new StateLocalitySlotAssigner();
+                            return new JobSchedulingPlan(
+                                    parallelism,
+                                    slotAssigner.assignSlots(
+                                            jobInformation,
+                                            slots,
+                                            parallelism,
+                                            jobAllocationsInformation));
+                        });
+    }
+
+    @Override
     public Optional<ReservedSlots> tryReserveResources(JobSchedulingPlan jobSchedulingPlan) {
         final Collection<AllocationID> expectedSlots =
                 calculateExpectedSlots(jobSchedulingPlan.getSlotAssignments());
+        LoggerFactory.getLogger(JustinSlotAllocator.class).debug("Test: " + expectedSlots);
         if (areAllExpectedSlotsAvailableAndFree(expectedSlots)) {
             final Map<ExecutionVertexID, LogicalSlot> assignedSlots = new HashMap<>();
 
@@ -262,6 +259,9 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     }
 
     private SharedSlot reserveSharedSlot(SlotInfo slotInfo) {
+        LoggerFactory
+                .getLogger(JustinSlotAllocator.class)
+                .debug("Reserving shared slot with resources: " + slotInfo.getResourceProfile());
         final PhysicalSlot physicalSlot =
                 reserveSlotFunction.reserveSlot(
                         slotInfo.getAllocationId(), slotInfo.getResourceProfile());
@@ -311,18 +311,6 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             this.maxLowerUpperBoundRange = maxLowerUpperBoundRange;
         }
 
-        public int getMinLowerBound() {
-            return minLowerBound;
-        }
-
-        public int getMaxUpperBound() {
-            return maxUpperBound;
-        }
-
-        public int getMaxLowerUpperBoundRange() {
-            return maxLowerUpperBoundRange;
-        }
-
         public static Map<SlotSharingGroupId, SlotSharingGroupMetaInfo> from(
                 Iterable<JobInformation.VertexInformation> vertices) {
 
@@ -359,6 +347,18 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                                         : reducer.apply(currentData, mapper.apply(vertex)));
             }
             return extractedPerSlotSharingGroups;
+        }
+
+        public int getMinLowerBound() {
+            return minLowerBound;
+        }
+
+        public int getMaxUpperBound() {
+            return maxUpperBound;
+        }
+
+        public int getMaxLowerUpperBoundRange() {
+            return maxLowerUpperBoundRange;
         }
     }
 }

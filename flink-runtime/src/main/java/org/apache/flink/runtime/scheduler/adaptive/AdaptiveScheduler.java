@@ -45,6 +45,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
@@ -106,8 +107,10 @@ import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.JobAllocationsInformation;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.JustinSlotAssigner;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAssigner;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceMinimalIncreaseRescalingController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.RescalingController;
@@ -137,6 +140,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -203,7 +207,7 @@ public class AdaptiveScheduler
 
     private final Collection<JobStatusListener> jobStatusListeners;
 
-    private final SlotAllocator slotAllocator;
+    private SlotAllocator slotAllocator;
 
     private final RescalingController rescalingController;
 
@@ -859,6 +863,16 @@ public class AdaptiveScheduler
         this.justinRescale = true;
         this.firstJustinRescale = true;
         this.justinResourceRequirements = justinResourceRequirements;
+        /*
+        if (!(slotAllocator instanceof JustinSlotAllocator)) {
+            SlotSharingSlotAllocator slotSharingSlotAllocator = (SlotSharingSlotAllocator) slotAllocator;
+            slotAllocator = JustinSlotAllocator.createJustinSlotAllocator(
+                    slotSharingSlotAllocator.reserveSlotFunction,
+                    slotSharingSlotAllocator.freeSlotFunction,
+                    slotSharingSlotAllocator.isSlotAvailableAndFreeFunction
+            );
+        }
+         */
         if (executionMode == SchedulerExecutionMode.REACTIVE) {
             throw new UnsupportedOperationException(
                     "Cannot change the parallelism of a job running in reactive mode.");
@@ -866,11 +880,6 @@ public class AdaptiveScheduler
         final Optional<VertexParallelismStore> maybeUpdateVertexParallelismStore =
                 DefaultVertexParallelismStore.applyJustinResourceRequirements(
                         jobInformation.getVertexParallelismStore(), justinResourceRequirements);
-        for (JobVertexID v : justinResourceRequirements.getJobVertices()) {
-            System.out.println(
-                    maybeUpdateVertexParallelismStore.get().getParallelismInfo(v).toString());
-            LOG.info(maybeUpdateVertexParallelismStore.get().getParallelismInfo(v).toString());
-        }
 
         if (maybeUpdateVertexParallelismStore.isPresent()) {
             updateJustinGraphJobInformation(maybeUpdateVertexParallelismStore.get());
@@ -936,6 +945,9 @@ public class AdaptiveScheduler
     private JobSchedulingPlan determineParallelism(
             SlotAllocator slotAllocator, @Nullable ExecutionGraph previousExecutionGraph)
             throws NoResourceAvailableException {
+        if (justinRescale) {
+            return createJustinSchedulingPlan(previousExecutionGraph);
+        }
 
         return slotAllocator
                 .determineParallelismAndCalculateAssignment(
@@ -946,6 +958,24 @@ public class AdaptiveScheduler
                         () ->
                                 new NoResourceAvailableException(
                                         "Not enough resources available for scheduling."));
+    }
+
+    private JobSchedulingPlan createJustinSchedulingPlan(ExecutionGraph previousExecutionGraph) {
+        SlotAssigner slotAssigner = new JustinSlotAssigner();
+        VertexParallelism vertexParallelism;
+        Map<JobVertexID, Integer> map = new HashMap<>();
+        for (JobInformation.VertexInformation vertexInformation : jobInformation.getVertices()) {
+            map.put(vertexInformation.getJobVertexID(), vertexInformation.getParallelism());
+        }
+        vertexParallelism = new VertexParallelism(map);
+        JobSchedulingPlan jobSchedulingPlan = new JobSchedulingPlan(
+                vertexParallelism,
+                slotAssigner.assignSlots(
+                        jobInformation,
+                        declarativeSlotPool.getFreeSlotInfoTracker().getFreeSlotsInformation(),
+                        vertexParallelism,
+                        JobAllocationsInformation.fromGraph(previousExecutionGraph)));
+        return jobSchedulingPlan;
     }
 
     @Override
@@ -969,6 +999,18 @@ public class AdaptiveScheduler
         } else {
             declareJustinDesiredResources();
         }
+        // To avoid getting ConcurrentModificationException
+        List<AllocationID> allocationIDS = declarativeSlotPool
+                .getAllSlotsInformation()
+                .stream()
+                .map(SlotInfo::getAllocationId)
+                .collect(Collectors.toList());
+        for (AllocationID allocationID : allocationIDS) {
+            declarativeSlotPool.releaseSlot(
+                    allocationID,
+                    new FlinkException(
+                            "Releasing all slots before restarting."));
+        }
 
         transitionToState(
                 new WaitingForResources.Factory(
@@ -981,7 +1023,6 @@ public class AdaptiveScheduler
 
     private void declareDesiredResources() {
         final ResourceCounter newDesiredResources = calculateDesiredResources();
-        LOG.info(String.valueOf(newDesiredResources));
 
         if (!newDesiredResources.equals(this.desiredResources)) {
             this.desiredResources = newDesiredResources;
@@ -995,7 +1036,6 @@ public class AdaptiveScheduler
 
     private void declareJustinDesiredResources() {
         final ResourceCounter newDesiredResources = calculateJustinDesiredResources();
-        LOG.info(String.valueOf(newDesiredResources));
 
         if (!newDesiredResources.equals(this.desiredResources)) {
             this.desiredResources = newDesiredResources;

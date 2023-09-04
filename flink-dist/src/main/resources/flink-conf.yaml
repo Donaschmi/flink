@@ -49,7 +49,6 @@ jobmanager.rpc.port: 6123
 
 jobmanager.bind-host: localhost
 
-
 # The total process memory size for the JobManager.
 #
 # Note this accounts for all memory usage within the JobManager process, including JVM metaspace and other overhead.
@@ -97,56 +96,63 @@ taskmanager.numberOfTaskSlots: 4
 
 parallelism.default: 1
 
+jobmanager.scheduler: adaptive
+
 kubernetes.operator.job.autoscaler.enabled: true
 kubernetes.operator.job.autoscaler.stabilization.interval: 1m
 kubernetes.operator.job.autoscaler.metrics.window: 3m
 pipeline.max-parallelism: 24
 kubernetes.operator.job.autoscaler.target.utilization.boundary: 0.5
 
-# The default file system scheme and authority.
-# 
-# By default file paths without scheme are interpreted relative to the local
-# root file system 'file:///'. Use this to override the default and interpret
-# relative paths relative to a different file system,
-# for example 'hdfs://mynamenode:12345'
-#
-# fs.default-scheme
+state.backend.rocksdb.metrics.block-cache-hit: true
+state.backend.rocksdb.metrics.block-cache-miss: true
+state.backend.rocksdb.metrics.block-cache-usage: true
+state.backend.rocksdb.metrics.estimate-num-keys: true
+state.backend.rocksdb.metrics.live-sst-files-size: true
 
-#==============================================================================
+ # The default file system scheme and authority.
+ #
+ # By default file paths without scheme are interpreted relative to the local
+ # root file system 'file:///'. Use this to override the default and interpret
+ # relative paths relative to a different file system,
+ # for example 'hdfs://mynamenode:12345'
+ #
+ # fs.default-scheme
+
+ #==============================================================================
 # High Availability
 #==============================================================================
 
-# The high-availability mode. Possible options are 'NONE' or 'zookeeper'.
+ # The high-availability mode. Possible options are 'NONE' or 'zookeeper'.
 #
 # high-availability.type: zookeeper
 
-# The path where metadata for master recovery is persisted. While ZooKeeper stores
+ # The path where metadata for master recovery is persisted. While ZooKeeper stores
 # the small ground truth for checkpoint and leader election, this location stores
 # the larger objects, like persisted dataflow graphs.
-# 
+ #
 # Must be a durable file system that is accessible from all nodes
-# (like HDFS, S3, Ceph, nfs, ...) 
+ # (like HDFS, S3, Ceph, nfs, ...)
 #
 # high-availability.storageDir: hdfs:///flink/ha/
 
-# The list of ZooKeeper quorum peers that coordinate the high-availability
+ # The list of ZooKeeper quorum peers that coordinate the high-availability
 # setup. This must be a list of the form:
 # "host1:clientPort,host2:clientPort,..." (default clientPort: 2181)
 #
 # high-availability.zookeeper.quorum: localhost:2181
 
-
-# ACL options are based on https://zookeeper.apache.org/doc/r3.1.2/zookeeperProgrammers.html#sc_BuiltinACLSchemes
+ # ACL options are based on https://zookeeper.apache.org/doc/r3.1.2/zookeeperProgrammers.html#sc_BuiltinACLSchemes
 # It can be either "creator" (ZOO_CREATE_ALL_ACL) or "open" (ZOO_OPEN_ACL_UNSAFE)
 # The default value is "open" and it can be changed to "creator" if ZK security is enabled
 #
 # high-availability.zookeeper.client.acl: open
 
-#==============================================================================
+ #==============================================================================
 # Fault tolerance and checkpointing
 #==============================================================================
 
-# The backend that will be used to store operator state checkpoints if
+ # The backend that will be used to store operator state checkpoints if
 # checkpointing is enabled. Checkpointing is enabled when execution.checkpointing.interval > 0.
 #
 # Execution checkpointing related parameters. Please refer to CheckpointConfig and ExecutionCheckpointingOptions for more details.
@@ -163,7 +169,7 @@ kubernetes.operator.job.autoscaler.target.utilization.boundary: 0.5
 # Supported backends are 'hashmap', 'rocksdb', or the
 # <class-name-of-factory>.
 #
-# state.backend.type: hashmap
+ state.backend.type: rocksdb
 
 # Directory for checkpoints filesystem, when using any of the default bundled
 # state backends.
@@ -175,7 +181,7 @@ kubernetes.operator.job.autoscaler.target.utilization.boundary: 0.5
 # state.savepoints.dir: hdfs://namenode-host:port/flink-savepoints
 
 # Flag to enable/disable incremental checkpoints for backends that
-# support incremental checkpoints (like the RocksDB state backend). 
+# support incremental checkpoints (like the RocksDB state backend).
 #
 # state.backend.incremental: false
 
@@ -210,7 +216,6 @@ rest.address: localhost
 # network interface, such as 0.0.0.0.
 #
 rest.bind-address: localhost
-
 # Flag to specify whether job submission is enabled from the web-based
 # runtime monitor. Uncomment to disable.
 
@@ -251,10 +256,10 @@ rest.bind-address: localhost
 #
 # classloader.resolve-order: child-first
 
-# The amount of memory going to the network stack. These numbers usually need 
+# The amount of memory going to the network stack. These numbers usually need
 # no tuning. Adjusting them may be necessary in case of an "Insufficient number
 # of network buffers" error. The default min is 64MB, the default max is 1GB.
-# 
+#
 # taskmanager.memory.network.fraction: 0.1
 # taskmanager.memory.network.min: 64mb
 # taskmanager.memory.network.max: 1gb

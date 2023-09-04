@@ -73,6 +73,6 @@ public class JustinResourceRequirementsUpdateHeaders
 
     @Override
     public String operationId() {
-        return "updateJobResourceRequirements";
+        return "updateJustinResourceRequirements";
     }
 }

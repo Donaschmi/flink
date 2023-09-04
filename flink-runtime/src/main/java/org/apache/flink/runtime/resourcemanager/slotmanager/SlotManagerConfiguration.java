@@ -202,13 +202,13 @@ public class SlotManagerConfiguration {
 
     private static Time getSlotRequestTimeout(final Configuration configuration) {
         final long slotRequestTimeoutMs;
-        if (configuration.contains(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT)) {
+        if (configuration.contains(JobManagerOptions.SLOT_REQUEST_TIMEOUT)) {
             LOGGER.warn(
                     "Config key {} is deprecated; use {} instead.",
-                    ResourceManagerOptions.SLOT_REQUEST_TIMEOUT,
+                    JobManagerOptions.SLOT_REQUEST_TIMEOUT,
                     JobManagerOptions.SLOT_REQUEST_TIMEOUT);
             slotRequestTimeoutMs =
-                    configuration.getLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT);
+                    configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT);
         } else {
             slotRequestTimeoutMs = configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT);
         }

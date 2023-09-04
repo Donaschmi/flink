@@ -5,6 +5,8 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -45,6 +47,8 @@ public class JustinResourceRequirements implements Serializable {
     public static void writeToJobGraph(
             JobGraph jobGraph, JustinResourceRequirements justinResourceRequirements)
             throws IOException {
+        LoggerFactory.getLogger(JustinResourceRequirements.class).debug(String.valueOf(
+                justinResourceRequirements.vertexResources));
         InstantiationUtil.writeObjectToConfig(
                 justinResourceRequirements,
                 jobGraph.getJobConfiguration(),

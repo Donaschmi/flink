@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
@@ -587,5 +588,17 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
-    public void notifyEndOfData(ExecutionAttemptID executionAttempt) {}
+    public CompletableFuture<JustinResourceRequirements> requestJustinResourceRequirements() {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> updateJustinResourceRequirements(
+            JustinResourceRequirements justinResourceRequirements) {
+        return null;
+    }
+
+    @Override
+    public void notifyEndOfData(ExecutionAttemptID executionAttempt) {
+    }
 }

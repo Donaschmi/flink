@@ -10,7 +10,7 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-public class JustinVertexResourceRequirements {
+public class JustinVertexResourceRequirements implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
