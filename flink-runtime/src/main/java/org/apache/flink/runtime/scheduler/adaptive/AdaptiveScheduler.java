@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.CheckpointType;
@@ -178,8 +179,8 @@ public class AdaptiveScheduler
                 Executing.Context,
                 Restarting.Context,
                 Failing.Context,
-                Finished.Context,
-                StopWithSavepoint.Context {
+        Finished.Context,
+        StopWithSavepoint.Context {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdaptiveScheduler.class);
 
@@ -187,6 +188,8 @@ public class AdaptiveScheduler
     private final VertexParallelismStore initialParallelismStore;
 
     private final DeclarativeSlotPool declarativeSlotPool;
+
+    private Configuration configuration;
 
     private final long initializationTimestamp;
 
@@ -272,6 +275,7 @@ public class AdaptiveScheduler
 
         this.jobGraph = jobGraph;
         this.executionMode = configuration.get(JobManagerOptions.SCHEDULER_MODE);
+        this.configuration = configuration;
 
         VertexParallelismStore vertexParallelismStore =
                 computeVertexParallelismStore(jobGraph, executionMode);
@@ -994,7 +998,7 @@ public class AdaptiveScheduler
 
     @Override
     public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {
-        if (!justinRescale) {
+        if (!justinRescale && this.configuration.get(PipelineOptions.JUSTIN_OVERRIDES) == null) {
             declareDesiredResources();
         } else {
             declareJustinDesiredResources();
@@ -1045,6 +1049,7 @@ public class AdaptiveScheduler
 
     private ResourceCounter calculateJustinDesiredResources() {
         ResourceCounter resourceCounter = ResourceCounter.empty();
+        /*
         for (JobVertex vertex : jobGraph.getVertices()) {
             resourceCounter =
                     resourceCounter.add(
@@ -1052,6 +1057,12 @@ public class AdaptiveScheduler
                             this.justinResourceRequirements
                                     .getParallelism(vertex.getID())
                                     .getUpperBound());
+        }*/
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            resourceCounter =
+                    resourceCounter.add(
+                            vertex.getSlotSharingGroup().getResourceProfile(),
+                            vertex.getParallelism());
         }
         return resourceCounter;
     }

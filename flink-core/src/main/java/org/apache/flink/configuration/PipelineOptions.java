@@ -187,6 +187,15 @@ public class PipelineOptions {
                             "A parallelism override map (jobVertexId -> parallelism) which will be used to update"
                                     + " the parallelism of the corresponding job vertices of submitted JobGraphs.");
 
+    public static final ConfigOption<Map<String, String>> JUSTIN_OVERRIDES =
+            key("pipeline.jobvertex-justin-overrides")
+                    .mapType()
+                    .defaultValue(Collections.emptyMap())
+                    .withDescription(
+                            "A parallelism override map (jobVertexId -> ResourceProfile) which will be used to update"
+                                    + " the parallelism of the corresponding job vertices of submitted JobGraphs.");
+
+
     public static final ConfigOption<Integer> MAX_PARALLELISM =
             key("pipeline.max-parallelism")
                     .intType()

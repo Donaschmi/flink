@@ -45,6 +45,7 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.DispatcherResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleaner;
@@ -64,6 +65,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
@@ -92,6 +94,7 @@ import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.util.ResourceProfileParser;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
@@ -600,6 +603,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private CompletableFuture<Acknowledge> internalSubmitJob(JobGraph jobGraph) {
         applyParallelismOverrides(jobGraph);
+        applyJustinOverrides(jobGraph);
         log.info("Submitting job '{}' ({}).", jobGraph.getName(), jobGraph.getJobID());
 
         // track as an outstanding job
@@ -1651,6 +1655,29 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         currentParallelism,
                         overrideParallelism);
                 vertex.setParallelism(overrideParallelism);
+            }
+        }
+    }
+
+    private void applyJustinOverrides(JobGraph jobGraph) {
+        Map<String, String> overrides = configuration.get(PipelineOptions.JUSTIN_OVERRIDES);
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            String override = overrides.get(vertex.getID().toHexString());
+            if (override != null) {
+                ResourceProfile currentResourceProfile = vertex
+                        .getSlotSharingGroup()
+                        .getResourceProfile();
+                ResourceProfile overrideResourceProfile = ResourceProfileParser.parseResourceProfile(
+                        override);
+                SlotSharingGroup ssg = new SlotSharingGroup();
+                ssg.setResourceProfile(overrideResourceProfile);
+                vertex.setSlotSharingGroup(ssg);
+
+                log.info(
+                        "Changing job vertex {} resource profile from {} to {}",
+                        vertex.getID(),
+                        currentResourceProfile,
+                        overrideResourceProfile);
             }
         }
     }
