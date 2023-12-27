@@ -107,6 +107,8 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import org.codehaus.jackson.map.ObjectMapper;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -1664,14 +1666,27 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         for (JobVertex vertex : jobGraph.getVertices()) {
             String override = overrides.get(vertex.getID().toHexString());
             if (override != null) {
+
                 ResourceProfile currentResourceProfile = vertex
                         .getSlotSharingGroup()
                         .getResourceProfile();
-                ResourceProfile overrideResourceProfile = ResourceProfileParser.parseResourceProfile(
-                        override);
-                SlotSharingGroup ssg = new SlotSharingGroup();
-                ssg.setResourceProfile(overrideResourceProfile);
-                vertex.setSlotSharingGroup(ssg);
+                ResourceProfile overrideResourceProfile;
+                try {
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    overrideResourceProfile = objectMapper.readValue(
+                            override,
+                            ResourceProfile.class);
+                    SlotSharingGroup ssg = new SlotSharingGroup();
+                    ssg.setResourceProfile(overrideResourceProfile);
+                    vertex.setSlotSharingGroup(ssg);
+
+                } catch (Exception e) {
+                    overrideResourceProfile = ResourceProfileParser.parseResourceProfile(
+                            override);
+                    SlotSharingGroup ssg = new SlotSharingGroup();
+                    ssg.setResourceProfile(overrideResourceProfile);
+                    vertex.setSlotSharingGroup(ssg);
+                }
 
                 log.info(
                         "Changing job vertex {} resource profile from {} to {}",

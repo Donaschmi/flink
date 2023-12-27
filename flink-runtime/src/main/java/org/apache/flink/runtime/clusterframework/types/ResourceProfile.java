@@ -27,6 +27,9 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.util.Preconditions;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -61,6 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * The extended resources are compared ordered by the resource names.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ResourceProfile implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -117,6 +121,15 @@ public class ResourceProfile implements Serializable {
 
     /** A extensible field for user specified resources from {@link ResourceSpec}. */
     private final Map<String, ExternalResource> extendedResources;
+
+
+    /** How much managed memory is needed. */
+    @Nullable // can be null only for UNKNOWN
+    private MemorySize totalMemory;
+
+    /** How much network memory is needed. */
+    @Nullable // can be null only for UNKNOWN
+    private MemorySize operatorsMemory;
 
     // ------------------------------------------------------------------------
 
@@ -221,6 +234,7 @@ public class ResourceProfile implements Serializable {
      *
      * @return The total memory
      */
+    @JsonIgnore
     public MemorySize getTotalMemory() {
         if (this.equals(UNKNOWN)) {
             return MemorySize.ZERO;
@@ -233,6 +247,7 @@ public class ResourceProfile implements Serializable {
      *
      * @return The operator memory
      */
+    @JsonIgnore
     public MemorySize getOperatorsMemory() {
         if (this.equals(UNKNOWN)) {
             return MemorySize.ZERO;

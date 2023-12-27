@@ -31,6 +31,13 @@ public class ResourceProfileParser {
         if (parsed.equals("0")) {
             return 0;
         }
-        return Integer.parseInt(parsed.split("\\.")[0]);
+        System.out.println(parsed);
+        int value = Integer.parseInt(parsed.split("\\.")[0]);
+        if (parsed.contains("gb")) {
+            value *= 1024;
+        } else if (parsed.contains("kb")) {
+            value /= 1024;
+        }
+        return value;
     }
 }
