@@ -20,9 +20,13 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -46,6 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * will be interpreted as bytes.
  */
 @PublicEvolving
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class MemorySize implements java.io.Serializable, Comparable<MemorySize> {
 
     private static final long serialVersionUID = 1L;
@@ -76,6 +81,11 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
     public MemorySize(long bytes) {
         checkArgument(bytes >= 0, "bytes must be >= 0");
         this.bytes = bytes;
+    }
+
+    @JsonCreator
+    public MemorySize(HashMap<String, Long> map) {
+        this.bytes = map.get("bytes");
     }
 
     public static MemorySize ofMebiBytes(long mebiBytes) {

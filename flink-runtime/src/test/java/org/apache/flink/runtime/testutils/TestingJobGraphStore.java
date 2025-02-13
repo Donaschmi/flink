@@ -21,6 +21,7 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -128,6 +129,13 @@ public class TestingJobGraphStore implements JobGraphStore {
         final JobGraph jobGraph =
                 Preconditions.checkNotNull(storedJobs.get(jobId), "Job [%s] not found.", jobId);
         putJobResourceRequirementsConsumer.accept(jobGraph, jobResourceRequirements);
+    }
+
+    @Override
+    public void putJustinResourceRequirements(
+            JobID jobId,
+            JustinResourceRequirements justinResourceRequirements) throws Exception {
+
     }
 
     @Override

@@ -49,9 +49,9 @@ import java.util.stream.Collectors;
 /** {@link SlotAllocator} implementation that supports slot sharing. */
 public class SlotSharingSlotAllocator implements SlotAllocator {
 
-    private final ReserveSlotFunction reserveSlotFunction;
-    private final FreeSlotFunction freeSlotFunction;
-    private final IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction;
+    public final ReserveSlotFunction reserveSlotFunction;
+    public final FreeSlotFunction freeSlotFunction;
+    public final IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction;
 
     private SlotSharingSlotAllocator(
             ReserveSlotFunction reserveSlot,
@@ -90,7 +90,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
         final int minimumRequiredSlots =
                 slotSharingGroupMetaInfo.values().stream()
-                        .map(SlotSharingGroupMetaInfo::getMaxLowerBound)
+                        .map(SlotSharingGroupMetaInfo::getMinLowerBound)
                         .reduce(0, Integer::sum);
 
         if (minimumRequiredSlots > freeSlots.size()) {
@@ -164,7 +164,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         for (SlotSharingGroupId slotSharingGroup :
                 sortSlotSharingGroupsByHighestParallelismRange(slotSharingGroupMetaInfo)) {
             final int minParallelism =
-                    slotSharingGroupMetaInfo.get(slotSharingGroup).getMaxLowerBound();
+                    slotSharingGroupMetaInfo.get(slotSharingGroup).getMinLowerBound();
 
             // if we reached this point we know we have more slots than we need to fulfill the
             // minimum requirements for each slot sharing group.
@@ -221,7 +221,6 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     public Optional<ReservedSlots> tryReserveResources(JobSchedulingPlan jobSchedulingPlan) {
         final Collection<AllocationID> expectedSlots =
                 calculateExpectedSlots(jobSchedulingPlan.getSlotAssignments());
-
         if (areAllExpectedSlotsAvailableAndFree(expectedSlots)) {
             final Map<ExecutionVertexID, LogicalSlot> assignedSlots = new HashMap<>();
 
@@ -265,7 +264,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private SharedSlot reserveSharedSlot(SlotInfo slotInfo) {
         final PhysicalSlot physicalSlot =
                 reserveSlotFunction.reserveSlot(
-                        slotInfo.getAllocationId(), ResourceProfile.UNKNOWN);
+                        slotInfo.getAllocationId(), slotInfo.getResourceProfile());
 
         return new SharedSlot(
                 new SlotRequestId(),
@@ -302,21 +301,18 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private static class SlotSharingGroupMetaInfo {
 
         private final int minLowerBound;
-        private final int maxLowerBound;
         private final int maxUpperBound;
+        private final int maxLowerUpperBoundRange;
 
-        private SlotSharingGroupMetaInfo(int minLowerBound, int maxLowerBound, int maxUpperBound) {
+        private SlotSharingGroupMetaInfo(
+                int minLowerBound, int maxUpperBound, int maxLowerUpperBoundRange) {
             this.minLowerBound = minLowerBound;
-            this.maxLowerBound = maxLowerBound;
             this.maxUpperBound = maxUpperBound;
+            this.maxLowerUpperBoundRange = maxLowerUpperBoundRange;
         }
 
         public int getMinLowerBound() {
             return minLowerBound;
-        }
-
-        public int getMaxLowerBound() {
-            return maxLowerBound;
         }
 
         public int getMaxUpperBound() {
@@ -324,7 +320,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         }
 
         public int getMaxLowerUpperBoundRange() {
-            return maxUpperBound - maxLowerBound;
+            return maxLowerUpperBoundRange;
         }
 
         public static Map<SlotSharingGroupId, SlotSharingGroupMetaInfo> from(
@@ -335,19 +331,18 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                     vertexInformation ->
                             new SlotSharingGroupMetaInfo(
                                     vertexInformation.getMinParallelism(),
-                                    vertexInformation.getMinParallelism(),
-                                    vertexInformation.getParallelism()),
+                                    vertexInformation.getParallelism(),
+                                    vertexInformation.getParallelism()
+                                            - vertexInformation.getMinParallelism()),
                     (metaInfo1, metaInfo2) ->
                             new SlotSharingGroupMetaInfo(
-                                    Math.min(
-                                            metaInfo1.getMinLowerBound(),
-                                            metaInfo2.getMinLowerBound()),
-                                    Math.max(
-                                            metaInfo1.getMaxLowerBound(),
-                                            metaInfo2.getMaxLowerBound()),
+                                    Math.min(metaInfo1.getMinLowerBound(), metaInfo2.minLowerBound),
                                     Math.max(
                                             metaInfo1.getMaxUpperBound(),
-                                            metaInfo2.getMaxUpperBound())));
+                                            metaInfo2.getMaxUpperBound()),
+                                    Math.max(
+                                            metaInfo1.getMaxLowerUpperBoundRange(),
+                                            metaInfo2.getMaxLowerUpperBoundRange())));
         }
 
         private static <T> Map<SlotSharingGroupId, T> getPerSlotSharingGroups(

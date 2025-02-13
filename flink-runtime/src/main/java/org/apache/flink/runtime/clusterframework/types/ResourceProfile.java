@@ -18,6 +18,10 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.resources.CPUResource;
@@ -32,6 +36,7 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -60,6 +65,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * The extended resources are compared ordered by the resource names.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ResourceProfile implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -116,6 +122,13 @@ public class ResourceProfile implements Serializable {
 
     /** A extensible field for user specified resources from {@link ResourceSpec}. */
     private final Map<String, ExternalResource> extendedResources;
+
+    /** How much managed memory is needed. */
+    @Nullable // can be null only for UNKNOWN
+    private MemorySize totalMemory;
+    /** How much network memory is needed. */
+    @Nullable // can be null only for UNKNOWN
+    private MemorySize operatorsMemory;
 
     // ------------------------------------------------------------------------
 
@@ -220,8 +233,12 @@ public class ResourceProfile implements Serializable {
      *
      * @return The total memory
      */
+    @JsonIgnore
     public MemorySize getTotalMemory() {
-        throwUnsupportedOperationExceptionIfUnknown();
+        //throwUnsupportedOperationExceptionIfUnknown();
+        if (this.equals(UNKNOWN)) {
+            return MemorySize.ZERO;
+        }
         return getOperatorsMemory().add(networkMemory);
     }
 
@@ -230,8 +247,12 @@ public class ResourceProfile implements Serializable {
      *
      * @return The operator memory
      */
+    @JsonIgnore
     public MemorySize getOperatorsMemory() {
-        throwUnsupportedOperationExceptionIfUnknown();
+        //throwUnsupportedOperationExceptionIfUnknown();
+        if (this.equals(UNKNOWN)) {
+            return MemorySize.ZERO;
+        }
         return taskHeapMemory.add(taskOffHeapMemory).add(managedMemory);
     }
 
@@ -246,7 +267,15 @@ public class ResourceProfile implements Serializable {
     }
 
     private void throwUnsupportedOperationExceptionIfUnknown() {
-        if (this.equals(UNKNOWN)) {
+        StackTraceElement[] stElements = Thread.currentThread().getStackTrace();
+        if (this.equals(UNKNOWN)
+                && Arrays.stream(stElements)
+                .noneMatch(
+                        stackTraceElement ->
+                                stackTraceElement
+                                        .getClassName()
+                                        .equals(
+                                                "org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper"))) {
             throw new UnsupportedOperationException();
         }
     }
@@ -269,11 +298,7 @@ public class ResourceProfile implements Serializable {
             return true;
         }
 
-        if (required.equals(UNKNOWN)) {
-            return true;
-        }
-
-        return false;
+        return required.equals(UNKNOWN);
     }
 
     /**

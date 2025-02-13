@@ -39,6 +39,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -223,6 +224,30 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
      * @param jobResourceRequirements new resource requirements
      */
     default void updateJobResourceRequirements(JobResourceRequirements jobResourceRequirements) {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "The %s does not support changing the parallelism without a job restart. This feature is currently only expected to work with the %s.",
+                        getClass().getSimpleName(), AdaptiveScheduler.class.getSimpleName()));
+    }
+
+    /**
+     * Read current {@link JustinResourceRequirements job resource requirements}.
+     *
+     * @return Current resource requirements.
+     */
+    default JustinResourceRequirements requestJustinResourceRequirements() {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "The %s does not support changing the parallelism without a job restart. This feature is currently only expected to work with the %s.",
+                        getClass().getSimpleName(), AdaptiveScheduler.class.getSimpleName()));
+    }
+    /**
+     * Update {@link JustinResourceRequirements job resource requirements}.
+     *
+     * @param justinResourceRequirements new resource requirements
+     */
+    default void updateJustinResourceRequirements(
+            JustinResourceRequirements justinResourceRequirements) {
         throw new UnsupportedOperationException(
                 String.format(
                         "The %s does not support changing the parallelism without a job restart. This feature is currently only expected to work with the %s.",

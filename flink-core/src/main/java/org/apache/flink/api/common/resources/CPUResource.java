@@ -20,12 +20,15 @@ package org.apache.flink.api.common.resources;
 
 import org.apache.flink.annotation.Internal;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.math.BigDecimal;
 
 import static java.math.BigDecimal.ROUND_HALF_UP;
 
 /** Represents CPU resource. */
 @Internal
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CPUResource extends Resource<CPUResource> {
 
     private static final long serialVersionUID = 7228645888210984393L;
@@ -38,6 +41,14 @@ public class CPUResource extends Resource<CPUResource> {
 
     private CPUResource(BigDecimal value) {
         super(NAME, value);
+    }
+
+    public CPUResource(int value) {
+        super(NAME, (double) value);
+    }
+
+    public CPUResource() {
+        super(NAME, 1.0);
     }
 
     @Override

@@ -717,6 +717,15 @@ public class JobManagerOptions {
                                                             code(UNFINISHED_PRODUCERS.name())))
                                             .build());
 
+    public static final ConfigOption<Boolean> SHARED_SLOT =
+            key("jobmanager.shared-slot")
+                    .booleanType()
+                    .defaultValue(false);
+    public static final ConfigOption<Boolean> JUSTIN_ENABLED =
+            key("jobmanager.scheduler.justin")
+                    .booleanType()
+                    .defaultValue(false);
+
     // ---------------------------------------------------------------------------------------------
 
     private JobManagerOptions() {

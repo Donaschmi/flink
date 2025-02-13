@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.persistence.ResourceVersion;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
@@ -255,6 +256,22 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
                                 jobId));
             }
             JobResourceRequirements.writeToJobGraph(jobGraph, jobResourceRequirements);
+            putJobGraph(jobGraph);
+        }
+    }
+
+    @Override
+    public void putJustinResourceRequirements(
+            JobID jobId, JustinResourceRequirements justinResourceRequirements) throws Exception {
+        synchronized (lock) {
+            @Nullable final JobGraph jobGraph = recoverJobGraph(jobId);
+            if (jobGraph == null) {
+                throw new NoSuchElementException(
+                        String.format(
+                                "JobGraph for job [%s] was not found in JobGraphStore and is needed for attaching JobResourceRequirements.",
+                                jobId));
+            }
+            JustinResourceRequirements.writeToJobGraph(jobGraph, justinResourceRequirements);
             putJobGraph(jobGraph);
         }
     }

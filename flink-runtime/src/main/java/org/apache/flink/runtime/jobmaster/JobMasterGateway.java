@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -325,6 +326,21 @@ public interface JobMasterGateway
      */
     CompletableFuture<Acknowledge> updateJobResourceRequirements(
             JobResourceRequirements jobResourceRequirements);
+
+    /**
+     * Read current {@link JustinResourceRequirements job resource requirements}.
+     *
+     * @return Future which that contains current resource requirements.
+     */
+    CompletableFuture<JustinResourceRequirements> requestJustinResourceRequirements();
+    /**
+     * Update {@link JustinResourceRequirements job resource requirements}.
+     *
+     * @param justinResourceRequirements new resource requirements
+     * @return Future which is completed successfully when requirements are updated
+     */
+    CompletableFuture<Acknowledge> updateJustinResourceRequirements(
+            JustinResourceRequirements justinResourceRequirements);
 
     /**
      * Notifies that the task has reached the end of data.

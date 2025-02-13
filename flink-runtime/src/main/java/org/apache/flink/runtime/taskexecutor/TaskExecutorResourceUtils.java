@@ -69,7 +69,7 @@ public class TaskExecutorResourceUtils {
 
     private TaskExecutorResourceUtils() {}
 
-    static TaskExecutorResourceSpec resourceSpecFromConfig(Configuration config) {
+    public static TaskExecutorResourceSpec resourceSpecFromConfig(Configuration config) {
         try {
             checkTaskExecutorResourceConfigSet(config);
         } catch (IllegalConfigurationException e) {

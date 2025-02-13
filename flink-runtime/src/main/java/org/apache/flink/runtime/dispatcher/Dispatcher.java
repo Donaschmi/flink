@@ -62,6 +62,7 @@ import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
@@ -1212,6 +1213,85 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 JobResourceRequirements.validate(
                         jobResourceRequirements, maxParallelismPerJobVertex);
 
+        if (!validationErrors.isEmpty()) {
+            throw new CompletionException(
+                    new RestHandlerException(
+                            validationErrors.stream()
+                                    .collect(Collectors.joining(System.lineSeparator())),
+                            HttpResponseStatus.BAD_REQUEST));
+        }
+    }
+
+    @Override
+    public CompletableFuture<JustinResourceRequirements> requestJustinResourceRequirements(
+            JobID jobId) {
+        return performOperationOnJobMasterGateway(
+                jobId, JobMasterGateway::requestJustinResourceRequirements);
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> updateJustinResourceRequirements(
+            JobID jobId, JustinResourceRequirements justinResourceRequirements) {
+        if (!pendingJobResourceRequirementsUpdates.add(jobId)) {
+            return FutureUtils.completedExceptionally(
+                    new RestHandlerException(
+                            "Another update to the job [%s] resource requirements is in progress.",
+                            HttpResponseStatus.CONFLICT));
+        }
+        return performOperationOnJobMasterGateway(jobId, gateway -> gateway.requestJob(webTimeout))
+                .thenApply(
+                        job -> {
+                            final Map<JobVertexID, Integer> maxParallelismPerJobVertex =
+                                    new HashMap<>();
+                            for (ArchivedExecutionJobVertex vertex :
+                                    job.getArchivedExecutionGraph().getVerticesTopologically()) {
+                                maxParallelismPerJobVertex.put(
+                                        vertex.getJobVertexId(), vertex.getMaxParallelism());
+                            }
+                            return maxParallelismPerJobVertex;
+                        })
+                .thenAccept(
+                        maxParallelismPerJobVertex ->
+                                validateMaxParallelism(
+                                        justinResourceRequirements, maxParallelismPerJobVertex))
+                .thenRunAsync(
+                        () -> {
+                            try {
+                                jobGraphWriter.putJustinResourceRequirements(
+                                        jobId, justinResourceRequirements);
+                            } catch (Exception e) {
+                                throw new CompletionException(
+                                        new RestHandlerException(
+                                                "The resource requirements could not be persisted and have not been applied. Please retry.",
+                                                HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                                                e));
+                            }
+                        },
+                        ioExecutor)
+                .thenComposeAsync(
+                        ignored ->
+                                performOperationOnJobMasterGateway(
+                                        jobId,
+                                        jobMasterGateway ->
+                                                jobMasterGateway.updateJustinResourceRequirements(
+                                                        justinResourceRequirements)),
+                        getMainThreadExecutor())
+                .whenComplete(
+                        (ack, error) -> {
+                            if (error != null) {
+                                log.debug(
+                                        "Failed to update requirements for job {}.", jobId, error);
+                            }
+                            pendingJobResourceRequirementsUpdates.remove(jobId);
+                        });
+    }
+
+    private static void validateMaxParallelism(
+            JustinResourceRequirements justinResourceRequirements,
+            Map<JobVertexID, Integer> maxParallelismPerJobVertex) {
+        final List<String> validationErrors =
+                JustinResourceRequirements.validate(
+                        justinResourceRequirements, maxParallelismPerJobVertex);
         if (!validationErrors.isEmpty()) {
             throw new CompletionException(
                     new RestHandlerException(

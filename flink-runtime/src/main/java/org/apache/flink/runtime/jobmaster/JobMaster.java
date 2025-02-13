@@ -58,6 +58,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
@@ -965,6 +966,18 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     public CompletableFuture<Acknowledge> updateJobResourceRequirements(
             JobResourceRequirements jobResourceRequirements) {
         schedulerNG.updateJobResourceRequirements(jobResourceRequirements);
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @Override
+    public CompletableFuture<JustinResourceRequirements> requestJustinResourceRequirements() {
+        return CompletableFuture.completedFuture(schedulerNG.requestJustinResourceRequirements());
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> updateJustinResourceRequirements(
+            JustinResourceRequirements justinResourceRequirements) {
+        schedulerNG.updateJustinResourceRequirements(justinResourceRequirements);
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 

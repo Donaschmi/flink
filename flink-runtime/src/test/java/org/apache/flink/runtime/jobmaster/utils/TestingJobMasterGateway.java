@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
@@ -199,6 +200,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             requestJobResourceRequirementsSupplier;
     private final Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
             updateJobResourceRequirementsFunction;
+
+    private final Supplier<CompletableFuture<JustinResourceRequirements>>
+            requestJustinResourceRequirementsSupplier = null;
+    private final Function<JustinResourceRequirements, CompletableFuture<Acknowledge>>
+            updateJustinResourceRequirementsFunction = null;
 
     public TestingJobMasterGateway(
             @Nonnull String address,
@@ -584,6 +590,17 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     public CompletableFuture<Acknowledge> updateJobResourceRequirements(
             JobResourceRequirements jobResourceRequirements) {
         return updateJobResourceRequirementsFunction.apply(jobResourceRequirements);
+    }
+
+    @Override
+    public CompletableFuture<JustinResourceRequirements> requestJustinResourceRequirements() {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> updateJustinResourceRequirements(
+            JustinResourceRequirements justinResourceRequirements) {
+        return null;
     }
 
     @Override
