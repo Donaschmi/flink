@@ -54,6 +54,8 @@ public class SlotManagerConfiguration {
     private final MemorySize maxTotalMem;
     private final int redundantTaskManagerNum;
 
+    private boolean binpackingStrategy;
+
     public SlotManagerConfiguration(
             Time taskManagerRequestTimeout,
             Time taskManagerTimeout,
@@ -85,6 +87,38 @@ public class SlotManagerConfiguration {
         this.maxTotalMem = Preconditions.checkNotNull(maxTotalMem);
         Preconditions.checkState(redundantTaskManagerNum >= 0);
         this.redundantTaskManagerNum = redundantTaskManagerNum;
+        this.binpackingStrategy = false;
+    }
+    public SlotManagerConfiguration(
+            Time taskManagerRequestTimeout,
+            Time taskManagerTimeout,
+            Duration requirementCheckDelay,
+            Duration declareNeededResourceDelay,
+            boolean waitResultConsumedBeforeRelease,
+            SlotMatchingStrategy slotMatchingStrategy,
+            boolean evenlySpreadOutSlots,
+            WorkerResourceSpec defaultWorkerResourceSpec,
+            int numSlotsPerWorker,
+            int maxSlotNum,
+            CPUResource maxTotalCpu,
+            MemorySize maxTotalMem,
+            int redundantTaskManagerNum,
+            boolean binpackingStrategy) {
+
+        this(taskManagerRequestTimeout,
+                taskManagerTimeout,
+                requirementCheckDelay,
+                declareNeededResourceDelay,
+                waitResultConsumedBeforeRelease,
+                slotMatchingStrategy,
+                evenlySpreadOutSlots,
+                defaultWorkerResourceSpec,
+                numSlotsPerWorker,
+                maxSlotNum,
+                maxTotalCpu,
+                maxTotalMem,
+                redundantTaskManagerNum);
+        this.binpackingStrategy = binpackingStrategy;
     }
 
     public Time getTaskManagerRequestTimeout() {
@@ -139,6 +173,8 @@ public class SlotManagerConfiguration {
         return redundantTaskManagerNum;
     }
 
+    public boolean getBinpackingStrategy() { return binpackingStrategy; }
+
     public static SlotManagerConfiguration fromConfiguration(
             Configuration configuration, WorkerResourceSpec defaultWorkerResourceSpec)
             throws ConfigurationException {
@@ -174,6 +210,9 @@ public class SlotManagerConfiguration {
         int redundantTaskManagerNum =
                 configuration.getInteger(ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM);
 
+        boolean binpackingStrategy =
+                configuration.getBoolean(ResourceManagerOptions.RESOURCE_MANAGER_BINPACKING_STRATEGY);
+
         return new SlotManagerConfiguration(
                 rpcTimeout,
                 taskManagerTimeout,
@@ -187,7 +226,8 @@ public class SlotManagerConfiguration {
                 maxSlotNum,
                 getMaxTotalCpu(configuration, defaultWorkerResourceSpec, maxSlotNum),
                 getMaxTotalMem(configuration, defaultWorkerResourceSpec, maxSlotNum),
-                redundantTaskManagerNum);
+                redundantTaskManagerNum,
+                binpackingStrategy);
     }
 
     private static CPUResource getMaxTotalCpu(

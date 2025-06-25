@@ -130,6 +130,8 @@ public class ResourceProfile implements Serializable {
     @Nullable // can be null only for UNKNOWN
     private MemorySize operatorsMemory;
 
+    private int targetTM;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -165,6 +167,40 @@ public class ResourceProfile implements Serializable {
     }
 
     /**
+     * Creates a new ResourceProfile.
+     *
+     * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
+     * @param taskHeapMemory The size of the task heap memory.
+     * @param taskOffHeapMemory The size of the task off-heap memory.
+     * @param managedMemory The size of the managed memory.
+     * @param networkMemory The size of the network memory.
+     * @param extendedResources The extended resources such as GPU and FPGA
+     */
+    private ResourceProfile(
+            final CPUResource cpuCores,
+            final MemorySize taskHeapMemory,
+            final MemorySize taskOffHeapMemory,
+            final MemorySize managedMemory,
+            final MemorySize networkMemory,
+            final Map<String, ExternalResource> extendedResources,
+            int targetTM) {
+
+        checkNotNull(cpuCores);
+
+        this.cpuCores = cpuCores;
+        this.taskHeapMemory = checkNotNull(taskHeapMemory);
+        this.taskOffHeapMemory = checkNotNull(taskOffHeapMemory);
+        this.managedMemory = checkNotNull(managedMemory);
+        this.networkMemory = checkNotNull(networkMemory);
+
+        this.extendedResources =
+                checkNotNull(extendedResources).entrySet().stream()
+                        .filter(entry -> !checkNotNull(entry.getValue()).isZero())
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        this.targetTM = targetTM;
+    }
+
+    /**
      * Creates a special ResourceProfile with negative values, indicating resources are unspecified.
      */
     private ResourceProfile() {
@@ -174,6 +210,7 @@ public class ResourceProfile implements Serializable {
         this.managedMemory = null;
         this.networkMemory = null;
         this.extendedResources = new HashMap<>();
+        this.targetTM = -1;
     }
 
     // ------------------------------------------------------------------------
@@ -264,6 +301,10 @@ public class ResourceProfile implements Serializable {
     public Map<String, ExternalResource> getExtendedResources() {
         throwUnsupportedOperationExceptionIfUnknown();
         return Collections.unmodifiableMap(extendedResources);
+    }
+
+    public int getTargetTM() {
+        return targetTM;
     }
 
     private void throwUnsupportedOperationExceptionIfUnknown() {
@@ -372,6 +413,7 @@ public class ResourceProfile implements Serializable {
         result = 31 * result + Objects.hashCode(managedMemory);
         result = 31 * result + Objects.hashCode(networkMemory);
         result = 31 * result + extendedResources.hashCode();
+        result += targetTM;
         return result;
     }
 
@@ -386,7 +428,8 @@ public class ResourceProfile implements Serializable {
                     && Objects.equals(taskOffHeapMemory, that.taskOffHeapMemory)
                     && Objects.equals(managedMemory, that.managedMemory)
                     && Objects.equals(networkMemory, that.networkMemory)
-                    && Objects.equals(extendedResources, that.extendedResources);
+                    && Objects.equals(extendedResources, that.extendedResources)
+                    && targetTM == that.targetTM;
         }
         return false;
     }
@@ -527,6 +570,7 @@ public class ResourceProfile implements Serializable {
         resourceStr = addMemorySizeString(resourceStr, "taskOffHeapMemory", taskOffHeapMemory);
         resourceStr = addMemorySizeString(resourceStr, "managedMemory", managedMemory);
         resourceStr = addMemorySizeString(resourceStr, "networkMemory", networkMemory);
+        resourceStr += ", targetTM=" + targetTM;
         return resourceStr;
     }
 
@@ -611,6 +655,7 @@ public class ResourceProfile implements Serializable {
         private MemorySize managedMemory = MemorySize.ZERO;
         private MemorySize networkMemory = MemorySize.ZERO;
         private Map<String, ExternalResource> extendedResources = new HashMap<>();
+        private int targetTM = -1;
 
         private Builder() {}
 
@@ -686,6 +731,11 @@ public class ResourceProfile implements Serializable {
             return this;
         }
 
+        public Builder setTargetTM(int targetTM) {
+            this.targetTM = targetTM;
+            return this;
+        }
+
         public ResourceProfile build() {
             return new ResourceProfile(
                     cpuCores,
@@ -693,7 +743,8 @@ public class ResourceProfile implements Serializable {
                     taskOffHeapMemory,
                     managedMemory,
                     networkMemory,
-                    extendedResources);
+                    extendedResources,
+                    targetTM);
         }
     }
 }

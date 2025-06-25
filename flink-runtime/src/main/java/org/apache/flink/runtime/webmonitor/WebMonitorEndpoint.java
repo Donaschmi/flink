@@ -71,6 +71,7 @@ import org.apache.flink.runtime.rest.handler.job.SubtaskExecutionAttemptAccumula
 import org.apache.flink.runtime.rest.handler.job.SubtaskExecutionAttemptDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtasksAllAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtasksTimesHandler;
+import org.apache.flink.runtime.rest.handler.job.charon.CharonUpdateHandler;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointConfigHandler;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointHandlers;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatisticDetailsHandler;
@@ -1044,6 +1045,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
         handlers.add(Tuple2.of(justinHandler.getMessageHeaders(), justinHandler));
         handlers.add(Tuple2.of(justinUpdateHandler.getMessageHeaders(), justinUpdateHandler));
+
+
+        final CharonUpdateHandler charonUpdateHandler =
+                new CharonUpdateHandler(
+                        leaderRetriever, timeout, responseHeaders
+                );
+        handlers.add(Tuple2.of(charonUpdateHandler.getMessageHeaders(), charonUpdateHandler));
 
         handlers.stream()
                 .map(tuple -> tuple.f1)

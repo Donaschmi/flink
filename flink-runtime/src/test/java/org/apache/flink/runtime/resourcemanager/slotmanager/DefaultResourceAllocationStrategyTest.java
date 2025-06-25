@@ -42,6 +42,8 @@ class DefaultResourceAllocationStrategyTest {
     private static final int NUM_OF_SLOTS = 5;
     private static final DefaultResourceAllocationStrategy ANY_MATCHING_STRATEGY =
             createStrategy(false);
+    private static final BinPackingResourceAllocationStrategy BIN_PACKING_STRATEGY =
+            createBinPackingStrategy();
 
     private static final DefaultResourceAllocationStrategy EVENLY_STRATEGY = createStrategy(true);
 
@@ -261,6 +263,168 @@ class DefaultResourceAllocationStrategyTest {
 
         assertThat(allFulfilledRequirements.getResourceCount(DEFAULT_SLOT_RESOURCE)).isEqualTo(4);
         assertThat(allFulfilledRequirements.getResourceCount(largeResource)).isEqualTo(2);
+    }
+
+    @Test
+    void testFulfillRequirementWithBinPackingStrategy() {
+        final TaskManagerInfo taskManager1 =
+                new TestingTaskManagerInfo(
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE);
+        final TaskManagerInfo taskManager2 =
+                new TestingTaskManagerInfo(
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE);
+        final TaskManagerResourceInfoProvider taskManagerResourceInfoProvider =
+                TestingTaskManagerResourceInfoProvider.newBuilder()
+                        .setRegisteredTaskManagersSupplier(
+                                () -> Arrays.asList(taskManager1, taskManager2))
+                        .build();
+        final JobID jobId = new JobID();
+        final List<ResourceRequirement> requirements = new ArrayList<>();
+        final ResourceProfile rp1 = DEFAULT_SLOT_RESOURCE.multiply(1);
+        final ResourceProfile rp2 = DEFAULT_SLOT_RESOURCE.multiply(2);
+        final ResourceProfile rp3 = DEFAULT_SLOT_RESOURCE.multiply(3);
+        final ResourceProfile rp4 = DEFAULT_SLOT_RESOURCE.multiply(4);
+        requirements.add(ResourceRequirement.create(rp1, 1, 0));
+        requirements.add(ResourceRequirement.create(rp2, 1, 1));
+        requirements.add(ResourceRequirement.create(rp3, 1, 1));
+        requirements.add(ResourceRequirement.create(rp4, 1, 0));
+
+        final ResourceAllocationResult result =
+                BIN_PACKING_STRATEGY.tryFulfillRequirements(
+                        Collections.singletonMap(jobId, requirements),
+                        taskManagerResourceInfoProvider,
+                        resourceID -> false
+                );
+        assertThat(result.getUnfulfillableJobs()).isEmpty();
+        assertThat(result.getAllocationsOnPendingResources()).isEmpty();
+        assertThat(result.getPendingTaskManagersToAllocate()).isEmpty();
+        System.out.println(result.getAllocationsOnRegisteredResources());
+        assertThat(
+                result.getAllocationsOnRegisteredResources()
+                        .get(jobId)
+                        .get(taskManager1.getInstanceId())
+                        .getResourceCount(DEFAULT_SLOT_RESOURCE.multiply(1)))
+                .isEqualTo(1);
+        assertThat(
+                result.getAllocationsOnRegisteredResources()
+                        .get(jobId)
+                        .get(taskManager1.getInstanceId())
+                        .getResourceCount(DEFAULT_SLOT_RESOURCE.multiply(4)))
+                .isEqualTo(1);
+        assertThat(
+                result.getAllocationsOnRegisteredResources()
+                        .get(jobId)
+                        .get(taskManager2.getInstanceId())
+                        .getResourceCount(DEFAULT_SLOT_RESOURCE.multiply(2)))
+                .isEqualTo(1);
+        assertThat(
+                result.getAllocationsOnRegisteredResources()
+                        .get(jobId)
+                        .get(taskManager2.getInstanceId())
+                        .getResourceCount(DEFAULT_SLOT_RESOURCE.multiply(3)))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testFulfillPendingRequirementWithBinPackingStrategy() {
+        final TaskManagerInfo taskManager1 =
+                new TestingTaskManagerInfo(
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE);
+        final TaskManagerResourceInfoProvider taskManagerResourceInfoProvider =
+                TestingTaskManagerResourceInfoProvider.newBuilder()
+                        .setRegisteredTaskManagersSupplier(
+                                () -> Arrays.asList(taskManager1))
+                        .build();
+        final JobID jobId = new JobID();
+        final List<ResourceRequirement> requirements = new ArrayList<>();
+        final ResourceProfile rp1 = DEFAULT_SLOT_RESOURCE.multiply(1);
+        final ResourceProfile rp2 = DEFAULT_SLOT_RESOURCE.multiply(2);
+        final ResourceProfile rp3 = DEFAULT_SLOT_RESOURCE.multiply(3);
+        final ResourceProfile rp4 = DEFAULT_SLOT_RESOURCE.multiply(4);
+        requirements.add(ResourceRequirement.create(rp1, 1, 0));
+        requirements.add(ResourceRequirement.create(rp2, 1, 1));
+        requirements.add(ResourceRequirement.create(rp3, 1, 1));
+        requirements.add(ResourceRequirement.create(rp4, 1, 0));
+
+        final ResourceAllocationResult result =
+                BIN_PACKING_STRATEGY.tryFulfillRequirements(
+                        Collections.singletonMap(jobId, requirements),
+                        taskManagerResourceInfoProvider,
+                        resourceID -> false
+                );
+        assertThat(result.getUnfulfillableJobs()).isEmpty();
+        assertThat(
+                result.getAllocationsOnRegisteredResources()
+                        .get(jobId)
+                        .get(taskManager1.getInstanceId())
+                        .getResourceCount(DEFAULT_SLOT_RESOURCE.multiply(1)))
+                .isEqualTo(1);
+        assertThat(
+                result.getAllocationsOnRegisteredResources()
+                        .get(jobId)
+                        .get(taskManager1.getInstanceId())
+                        .getResourceCount(DEFAULT_SLOT_RESOURCE.multiply(4)))
+                .isEqualTo(1);
+        assertThat(
+                result.getAllocationsOnPendingResources()
+                        .size())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testTaskManagerReleaseWithBinpackingStrategy() {
+        final TaskManagerInfo taskManager1 =
+                new TestingTaskManagerInfo(
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE);
+        final TaskManagerInfo taskManager2 =
+                new TestingTaskManagerInfo(
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE);
+        final TaskManagerResourceInfoProvider taskManagerResourceInfoProvider =
+                TestingTaskManagerResourceInfoProvider.newBuilder()
+                        .setRegisteredTaskManagersSupplier(
+                                () -> Arrays.asList(taskManager1, taskManager2))
+                        .build();
+        final JobID jobId = new JobID();
+        final List<ResourceRequirement> requirements = new ArrayList<>();
+        final ResourceProfile rp1 = DEFAULT_SLOT_RESOURCE.multiply(1);
+        final ResourceProfile rp2 = DEFAULT_SLOT_RESOURCE.multiply(4);
+        requirements.add(ResourceRequirement.create(rp1, 1, 0));
+        requirements.add(ResourceRequirement.create(rp2, 1, 0));
+
+        final ResourceAllocationResult result =
+                BIN_PACKING_STRATEGY.tryFulfillRequirements(
+                        Collections.singletonMap(jobId, requirements),
+                        taskManagerResourceInfoProvider,
+                        resourceID -> false
+                );
+        assertThat(result.getUnfulfillableJobs()).isEmpty();
+        assertThat(
+                result.getAllocationsOnRegisteredResources()
+                        .get(jobId)
+                        .get(taskManager1.getInstanceId())
+                        .getResourceCount(DEFAULT_SLOT_RESOURCE.multiply(1)))
+                .isEqualTo(1);
+        assertThat(
+                result.getAllocationsOnRegisteredResources()
+                        .get(jobId)
+                        .get(taskManager1.getInstanceId())
+                        .getResourceCount(DEFAULT_SLOT_RESOURCE.multiply(4)))
+                .isEqualTo(1);
+
+        final ResourceReconcileResult reconcileResult =
+                BIN_PACKING_STRATEGY.tryReconcileClusterResources(taskManagerResourceInfoProvider);
+        assertThat(reconcileResult.getTaskManagersToRelease().size())
+                .isEqualTo(1);
     }
 
     @Test
@@ -539,5 +703,11 @@ class DefaultResourceAllocationStrategyTest {
                 evenlySpreadOutSlots,
                 Time.milliseconds(0),
                 redundantTaskManagerNum);
+    }
+
+    private static BinPackingResourceAllocationStrategy createBinPackingStrategy() {
+        return new BinPackingResourceAllocationStrategy(
+                DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
+                NUM_OF_SLOTS);
     }
 }

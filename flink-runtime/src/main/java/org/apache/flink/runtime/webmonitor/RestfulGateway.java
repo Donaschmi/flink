@@ -31,6 +31,7 @@ import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.charon.CharonResourceRequirements;
 import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -50,6 +51,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -337,6 +339,19 @@ public interface RestfulGateway extends RpcGateway {
      */
     default CompletableFuture<Acknowledge> updateJustinResourceRequirements(
             JobID jobId, JustinResourceRequirements justinResourceRequirements) {
+        throw new UnsupportedOperationException("Operation is not yet implemented.");
+    }
+    /**
+     * Update {@link JustinResourceRequirements job resource requirements} for a given job. When the
+     * returned future is complete the requirements have been updated and were persisted in HA, but
+     * the job may not have been rescaled (yet).
+     *
+     * @param charonResourceRequirements new resource requirements for the job
+     * @return Future which is completed successfully when requirements are updated
+     */
+    default CompletableFuture<Acknowledge> charon(
+            JobID jobId,
+            JustinResourceRequirements charonResourceRequirements) {
         throw new UnsupportedOperationException("Operation is not yet implemented.");
     }
 }

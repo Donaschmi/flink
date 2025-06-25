@@ -333,6 +333,7 @@ public interface JobMasterGateway
      * @return Future which that contains current resource requirements.
      */
     CompletableFuture<JustinResourceRequirements> requestJustinResourceRequirements();
+
     /**
      * Update {@link JustinResourceRequirements job resource requirements}.
      *

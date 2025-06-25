@@ -23,12 +23,15 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.charon.CharonResourceRequirements;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Gateway for the Dispatcher component. */
@@ -107,5 +110,15 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
             TriggerSavepointMode savepointMode,
             @RpcTimeout final Time timeout) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    default CompletableFuture<Acknowledge> updateJustinResourceRequirements(JobID jobId, JustinResourceRequirements justinResourceRequirements) {
+        return RestfulGateway.super.updateJustinResourceRequirements(jobId, justinResourceRequirements);
+    }
+
+    @Override
+    default CompletableFuture<Acknowledge> charon(JobID jobId, JustinResourceRequirements justinResourceRequirements) {
+        return RestfulGateway.super.charon(jobId, justinResourceRequirements);
     }
 }

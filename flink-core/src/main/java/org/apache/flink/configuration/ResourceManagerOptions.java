@@ -279,6 +279,11 @@ public class ResourceManagerOptions {
 
     // ---------------------------------------------------------------------------------------------
 
+    public static final ConfigOption<Boolean> RESOURCE_MANAGER_BINPACKING_STRATEGY =
+            ConfigOptions.key("resourcemanager.binpacking-strategy.enabled")
+                    .booleanType()
+                    .defaultValue(false);
+
     /** Not intended to be instantiated. */
     private ResourceManagerOptions() {}
 }

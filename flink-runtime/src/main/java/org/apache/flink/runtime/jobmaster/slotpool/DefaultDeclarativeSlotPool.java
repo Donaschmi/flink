@@ -168,7 +168,9 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                 totalResourceRequirements.getResourcesWithCount()) {
             currentResourceRequirements.add(
                     ResourceRequirement.create(
-                            resourceRequirement.getKey(), resourceRequirement.getValue()));
+                            resourceRequirement.getKey(),
+                            resourceRequirement.getValue(),
+                            resourceRequirement.getKey().getTargetTM()));
         }
 
         return currentResourceRequirements;

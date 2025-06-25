@@ -121,8 +121,6 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryE
 import org.apache.flink.runtime.scheduler.justin.JustinVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExceptionUtils;

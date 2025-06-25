@@ -61,6 +61,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -241,6 +242,7 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
                         "The %s does not support changing the parallelism without a job restart. This feature is currently only expected to work with the %s.",
                         getClass().getSimpleName(), AdaptiveScheduler.class.getSimpleName()));
     }
+
     /**
      * Update {@link JustinResourceRequirements job resource requirements}.
      *
@@ -248,6 +250,17 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
      */
     default void updateJustinResourceRequirements(
             JustinResourceRequirements justinResourceRequirements) {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "The %s does not support changing the parallelism without a job restart. This feature is currently only expected to work with the %s.",
+                        getClass().getSimpleName(), AdaptiveScheduler.class.getSimpleName()));
+    }
+
+    /**
+     * Update {@link JustinResourceRequirements job resource requirements}.
+     */
+    default void charon(
+            Map<JobID, JustinResourceRequirements> justinResourceRequirements) {
         throw new UnsupportedOperationException(
                 String.format(
                         "The %s does not support changing the parallelism without a job restart. This feature is currently only expected to work with the %s.",

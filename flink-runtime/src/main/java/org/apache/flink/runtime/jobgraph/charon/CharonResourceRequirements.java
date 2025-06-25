@@ -1,8 +1,10 @@
-package org.apache.flink.runtime.jobgraph.justin;
+package org.apache.flink.runtime.jobgraph.charon;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
+import org.apache.flink.runtime.jobgraph.justin.JustinVertexResourceRequirements;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
@@ -19,20 +21,20 @@ import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-public class JustinResourceRequirements implements Serializable {
+public class CharonResourceRequirements implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /**
      * A key for an internal config option (intentionally prefixed with $internal to make this
-     * explicit), that we'll serialize the {@link JustinResourceRequirements} into, when writing it
+     * explicit), that we'll serialize the {@link CharonResourceRequirements} into, when writing it
      * to {@link JobGraph}.
      */
-    private static final String JUSTIN_RESOURCE_REQUIREMENTS_KEY =
-            "$internal.justin-resource-requirements";
+    private static final String CHARON_RESOURCE_REQUIREMENTS_KEY =
+            "$internal.charon-resource-requirements";
 
-    private static final JustinResourceRequirements EMPTY =
-            new JustinResourceRequirements(Collections.emptyMap());
+    private static final CharonResourceRequirements EMPTY =
+            new CharonResourceRequirements(Collections.emptyMap());
 
     /*
      * Write {@link JustinResourceRequirements resource requirements} into the configuration of a
@@ -43,12 +45,12 @@ public class JustinResourceRequirements implements Serializable {
      * @throws IOException in case we're not able to serialize requirements into the configuration
      */
     public static void writeToJobGraph(
-            JobGraph jobGraph, JustinResourceRequirements justinResourceRequirements)
+            JobGraph jobGraph, CharonResourceRequirements charonResourceRequirements)
             throws IOException {
         InstantiationUtil.writeObjectToConfig(
-                justinResourceRequirements,
+                charonResourceRequirements,
                 jobGraph.getJobConfiguration(),
-                JUSTIN_RESOURCE_REQUIREMENTS_KEY);
+                CHARON_RESOURCE_REQUIREMENTS_KEY);
     }
 
     /**
@@ -64,8 +66,8 @@ public class JustinResourceRequirements implements Serializable {
             return Optional.ofNullable(
                     InstantiationUtil.readObjectFromConfig(
                             jobGraph.getJobConfiguration(),
-                            JUSTIN_RESOURCE_REQUIREMENTS_KEY,
-                            JustinResourceRequirements.class.getClassLoader()));
+                            CHARON_RESOURCE_REQUIREMENTS_KEY,
+                            CharonResourceRequirements.class.getClassLoader()));
         } catch (ClassNotFoundException e) {
             throw new IOException(
                     "Unable to deserialize JustinResourceRequirements due to missing classes. This might happen when the JobGraph was written from a different Flink version.",
@@ -86,25 +88,25 @@ public class JustinResourceRequirements implements Serializable {
      * In case any boundary is set to {@code -1}, it will be expanded to the default value ({@code
      * 1} for the lower bound and the max parallelism for the upper bound), before the validation.
      *
-     * @param justinResourceRequirements contains the new resources requirements for the job
+     * @param charonResourceRequirements contains the new resources requirements for the job
      *     vertices
      * @param maxParallelismPerVertex allows us to look up maximum possible parallelism for a job
      *     vertex
      * @return a list of validation errors
      */
     public static List<String> validate(
-            JustinResourceRequirements justinResourceRequirements,
+            CharonResourceRequirements charonResourceRequirements,
             Map<JobVertexID, Integer> maxParallelismPerVertex) {
         final List<String> errors = new ArrayList<>();
         final Set<JobVertexID> missingJobVertexIds =
                 new HashSet<>(maxParallelismPerVertex.keySet());
-        for (JobVertexID jobVertexId : justinResourceRequirements.getJobVertices()) {
+        for (JobVertexID jobVertexId : charonResourceRequirements.getJobVertices()) {
             missingJobVertexIds.remove(jobVertexId);
             final Optional<Integer> maybeMaxParallelism =
                     Optional.ofNullable(maxParallelismPerVertex.get(jobVertexId));
             if (maybeMaxParallelism.isPresent()) {
                 final JustinVertexResourceRequirements.Parallelism requestedParallelism =
-                        justinResourceRequirements.getParallelism(jobVertexId);
+                        charonResourceRequirements.getParallelism(jobVertexId);
                 int lowerBound =
                         requestedParallelism.getLowerBound() == -1
                                 ? 1
@@ -148,65 +150,21 @@ public class JustinResourceRequirements implements Serializable {
         return errors;
     }
 
-    public static JustinResourceRequirements empty() {
-        return JustinResourceRequirements.EMPTY;
+    public static CharonResourceRequirements empty() {
+        return CharonResourceRequirements.EMPTY;
     }
 
-    public static JustinResourceRequirements.Builder newBuilder() {
-        return new JustinResourceRequirements.Builder();
-    }
+    private final Map<JobVertexID, CharonVertexResourceRequirements> vertexResources;
 
-    public static final class Builder {
-
-        private final Map<JobVertexID, JustinVertexResourceRequirements> vertexResources =
-                new HashMap<>();
-
-        public JustinResourceRequirements.Builder setParallelismForJobVertex(
-                JobVertexID jobVertexId,
-                int lowerBound,
-                int upperBound,
-                ResourceProfile resourceProfile) {
-            vertexResources.put(
-                    jobVertexId,
-                    new JustinVertexResourceRequirements(
-                            new JustinVertexResourceRequirements.Parallelism(
-                                    lowerBound, upperBound),
-                            resourceProfile));
-            return this;
-        }
-
-        public JustinResourceRequirements.Builder setParallelismForJobVertex(
-                JobVertexID jobVertexId,
-                int lowerBound,
-                int upperBound,
-                ResourceProfile resourceProfile,
-                int targetTM) {
-            vertexResources.put(
-                    jobVertexId,
-                    new JustinVertexResourceRequirements(
-                            new JustinVertexResourceRequirements.Parallelism(
-                                    lowerBound, upperBound),
-                            resourceProfile,
-                            targetTM));
-            return this;
-        }
-
-        public JustinResourceRequirements build() {
-            return new JustinResourceRequirements(vertexResources);
-        }
-    }
-
-    private final Map<JobVertexID, JustinVertexResourceRequirements> vertexResources;
-
-    public JustinResourceRequirements(
-            Map<JobVertexID, JustinVertexResourceRequirements> vertexResources) {
+    public CharonResourceRequirements(
+            Map<JobVertexID, CharonVertexResourceRequirements> vertexResources) {
         this.vertexResources =
                 Collections.unmodifiableMap(new HashMap<>(checkNotNull(vertexResources)));
     }
 
-    public JustinVertexResourceRequirements.Parallelism getParallelism(JobVertexID jobVertexId) {
+    public CharonVertexResourceRequirements.Parallelism getParallelism(JobVertexID jobVertexId) {
         return Optional.ofNullable(vertexResources.get(jobVertexId))
-                .map(JustinVertexResourceRequirements::getParallelism)
+                .map(CharonVertexResourceRequirements::getParallelism)
                 .orElseThrow(
                         () ->
                                 new IllegalStateException(
@@ -215,18 +173,28 @@ public class JustinResourceRequirements implements Serializable {
 
     public ResourceProfile getResourceProfile(JobVertexID jobVertexId) {
         return Optional.ofNullable(vertexResources.get(jobVertexId))
-                .map(JustinVertexResourceRequirements::getResourceProfile)
+                .map(CharonVertexResourceRequirements::getResourceProfile)
                 .orElseThrow(
                         () ->
                                 new IllegalStateException(
                                         "No requirement set for vertex " + jobVertexId));
     }
 
+    public int getTargetTM(JobVertexID jobVertexId) {
+        return Optional.ofNullable(vertexResources.get(jobVertexId))
+                .map(CharonVertexResourceRequirements::getTargetTM)
+                .orElseThrow(
+                        () ->
+                                new IllegalStateException(
+                                        "No requirement set for vertex " + jobVertexId));
+
+    }
+
     public Set<JobVertexID> getJobVertices() {
         return vertexResources.keySet();
     }
 
-    public Map<JobVertexID, JustinVertexResourceRequirements> getJobVertexParallelisms() {
+    public Map<JobVertexID, CharonVertexResourceRequirements> getJobVertexParallelisms() {
         return vertexResources;
     }
 
@@ -238,7 +206,7 @@ public class JustinResourceRequirements implements Serializable {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final JustinResourceRequirements that = (JustinResourceRequirements) o;
+        final CharonResourceRequirements that = (CharonResourceRequirements) o;
         return Objects.equals(vertexResources, that.vertexResources);
     }
 

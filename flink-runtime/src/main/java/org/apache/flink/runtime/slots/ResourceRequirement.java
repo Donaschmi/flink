@@ -32,12 +32,24 @@ public class ResourceRequirement implements Serializable {
 
     private final int numberOfRequiredSlots;
 
+    private final int targetTM;
+
     private ResourceRequirement(ResourceProfile resourceProfile, int numberOfRequiredSlots) {
         Preconditions.checkNotNull(resourceProfile);
         Preconditions.checkArgument(numberOfRequiredSlots > 0);
 
         this.resourceProfile = resourceProfile;
         this.numberOfRequiredSlots = numberOfRequiredSlots;
+        this.targetTM = -1;
+    }
+
+    private ResourceRequirement(ResourceProfile resourceProfile, int numberOfRequiredSlots, int targetTM) {
+        Preconditions.checkNotNull(resourceProfile);
+        Preconditions.checkArgument(numberOfRequiredSlots > 0);
+
+        this.resourceProfile = resourceProfile;
+        this.numberOfRequiredSlots = numberOfRequiredSlots;
+        this.targetTM = targetTM;
     }
 
     public ResourceProfile getResourceProfile() {
@@ -48,9 +60,18 @@ public class ResourceRequirement implements Serializable {
         return numberOfRequiredSlots;
     }
 
+    public int getTargetTM() {
+        return targetTM;
+    }
+
     public static ResourceRequirement create(
             ResourceProfile resourceProfile, int numberOfRequiredSlots) {
         return new ResourceRequirement(resourceProfile, numberOfRequiredSlots);
+    }
+
+    public static ResourceRequirement create(
+            ResourceProfile resourceProfile, int numberOfRequiredSlots, int targetTM) {
+        return new ResourceRequirement(resourceProfile, numberOfRequiredSlots, targetTM);
     }
 
     @Override

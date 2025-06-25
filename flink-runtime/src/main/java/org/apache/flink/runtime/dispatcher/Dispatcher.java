@@ -62,6 +62,7 @@ import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.charon.CharonResourceRequirements;
 import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
@@ -1284,6 +1285,15 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                             }
                             pendingJobResourceRequirementsUpdates.remove(jobId);
                         });
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> charon(Map<JobID, CharonResourceRequirements> justinResourceRequirements) {
+        List<CompletableFuture<Acknowledge>> list = new ArrayList<>();
+        justinResourceRequirements.forEach((jobID, justinResourceRequirements1) -> {
+            //list.add(this.updateJustinResourceRequirements(jobID, justinResourceRequirements1));
+        });
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     private static void validateMaxParallelism(

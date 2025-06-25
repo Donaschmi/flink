@@ -16,6 +16,7 @@ public class JustinVertexResourceRequirements {
 
     private static final String FIELD_NAME_PARALLELISM = "parallelism";
     private static final String FIELD_NAME_RESOURCE_PROFILE = "resourceProfile";
+    private static final String FIELD_NAME_TARGET_TM = "targetTM";
 
     public static class Parallelism implements Serializable {
 
@@ -57,11 +58,6 @@ public class JustinVertexResourceRequirements {
         }
 
         @Override
-        public int hashCode() {
-            return Objects.hash(lowerBound, upperBound);
-        }
-
-        @Override
         public String toString() {
             return "Parallelism{" + "lowerBound=" + lowerBound + ", upperBound=" + upperBound + '}';
         }
@@ -73,11 +69,26 @@ public class JustinVertexResourceRequirements {
     @JsonProperty(FIELD_NAME_RESOURCE_PROFILE)
     private final ResourceProfile resourceProfile;
 
+    @JsonProperty(FIELD_NAME_TARGET_TM)
+    private final int targetTM;
+
+
     public JustinVertexResourceRequirements(
             @JsonProperty(FIELD_NAME_PARALLELISM) Parallelism parallelism,
-            @JsonProperty(FIELD_NAME_RESOURCE_PROFILE) ResourceProfile resourceProfile) {
+            @JsonProperty(FIELD_NAME_RESOURCE_PROFILE) ResourceProfile resourceProfile
+            ){
         this.parallelism = checkNotNull(parallelism);
         this.resourceProfile = resourceProfile;
+        this.targetTM = -1;
+    }
+
+    public JustinVertexResourceRequirements(
+            @JsonProperty(FIELD_NAME_PARALLELISM) Parallelism parallelism,
+            @JsonProperty(FIELD_NAME_RESOURCE_PROFILE) ResourceProfile resourceProfile,
+            @JsonProperty(FIELD_NAME_TARGET_TM) int targetTM) {
+        this.parallelism = checkNotNull(parallelism);
+        this.resourceProfile = resourceProfile;
+        this.targetTM = targetTM;
     }
 
     public Parallelism getParallelism() {
@@ -86,6 +97,10 @@ public class JustinVertexResourceRequirements {
 
     public ResourceProfile getResourceProfile() {
         return resourceProfile;
+    }
+
+    public int getTargetTM() {
+        return targetTM;
     }
 
     @Override
@@ -112,6 +127,8 @@ public class JustinVertexResourceRequirements {
                 + parallelism
                 + ", resourceProfile="
                 + resourceProfile
+                + ", targetTM="
+                + targetTM
                 + '}';
     }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
+import org.apache.flink.runtime.resourcemanager.slotmanager.BinPackingResourceAllocationStrategy;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DeclarativeSlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultResourceAllocationStrategy;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultResourceTracker;
@@ -27,6 +28,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotStatusSyn
 import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotTracker;
 import org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedSlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedTaskManagerTracker;
+import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceAllocationStrategy;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerUtils;
@@ -78,6 +80,18 @@ public class ResourceManagerRuntimeServices {
         final SlotManagerConfiguration slotManagerConfiguration =
                 configuration.getSlotManagerConfiguration();
         if (configuration.isEnableFineGrainedResourceManagement()) {
+            ResourceAllocationStrategy strategy =
+                    configuration.getSlotManagerConfiguration().getBinpackingStrategy() ?
+                            new BinPackingResourceAllocationStrategy(
+                                    SlotManagerUtils.generateTaskManagerTotalResourceProfile(slotManagerConfiguration.getDefaultWorkerResourceSpec()),
+                                    slotManagerConfiguration.getNumSlotsPerWorker())
+                            : new DefaultResourceAllocationStrategy(
+                                SlotManagerUtils.generateTaskManagerTotalResourceProfile(
+                                        slotManagerConfiguration.getDefaultWorkerResourceSpec()),
+                                slotManagerConfiguration.getNumSlotsPerWorker(),
+                                slotManagerConfiguration.isEvenlySpreadOutSlots(),
+                                slotManagerConfiguration.getTaskManagerTimeout(),
+                                slotManagerConfiguration.getRedundantTaskManagerNum());
             return new FineGrainedSlotManager(
                     scheduledExecutor,
                     slotManagerConfiguration,
@@ -86,13 +100,7 @@ public class ResourceManagerRuntimeServices {
                     new FineGrainedTaskManagerTracker(),
                     new DefaultSlotStatusSyncer(
                             slotManagerConfiguration.getTaskManagerRequestTimeout()),
-                    new DefaultResourceAllocationStrategy(
-                            SlotManagerUtils.generateTaskManagerTotalResourceProfile(
-                                    slotManagerConfiguration.getDefaultWorkerResourceSpec()),
-                            slotManagerConfiguration.getNumSlotsPerWorker(),
-                            slotManagerConfiguration.isEvenlySpreadOutSlots(),
-                            slotManagerConfiguration.getTaskManagerTimeout(),
-                            slotManagerConfiguration.getRedundantTaskManagerNum()));
+                    strategy);
         } else {
             return new DeclarativeSlotManager(
                     scheduledExecutor,
