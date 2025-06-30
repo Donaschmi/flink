@@ -73,7 +73,8 @@ public class CharonUpdateHandler
         final Optional<JustinResourceRequirements> maybeJobResourceRequirements =
                 request.getRequestBody().asCharonResourceRequirements();
         if (maybeJobResourceRequirements.isPresent()) {
-            return gateway.charon(jobId, maybeJobResourceRequirements.get())
+            return gateway
+                    .updateJustinResourceRequirements(jobId, maybeJobResourceRequirements.get())
                     .thenApply(ignored -> EmptyResponseBody.getInstance());
         }
         throw new RestHandlerException(

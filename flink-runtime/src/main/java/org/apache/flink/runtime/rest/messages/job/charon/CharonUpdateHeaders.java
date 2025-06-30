@@ -32,7 +32,7 @@ public class CharonUpdateHeaders
         CharonBody, EmptyResponseBody, JobMessageParameters> {
     public static final CharonUpdateHeaders INSTANCE =
             new CharonUpdateHeaders();
-    private static final String URL = "/jobs/charon";
+    private static final String URL = "/jobs/:" + JobIDPathParameter.KEY + "/charon";
     @Override
     public HttpMethodWrapper getHttpMethod() {
         return HttpMethodWrapper.PUT;
@@ -63,6 +63,6 @@ public class CharonUpdateHeaders
     }
     @Override
     public String operationId() {
-        return "updateJobResourceRequirements";
+        return "updateCharonResourceRequirements";
     }
 }

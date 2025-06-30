@@ -31,6 +31,8 @@ import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignm
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
 
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
@@ -221,6 +223,9 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     public Optional<ReservedSlots> tryReserveResources(JobSchedulingPlan jobSchedulingPlan) {
         final Collection<AllocationID> expectedSlots =
                 calculateExpectedSlots(jobSchedulingPlan.getSlotAssignments());
+        LoggerFactory
+                .getLogger(SlotSharingSlotAllocator.class)
+                .debug("expectedSlots: " + expectedSlots);
         if (areAllExpectedSlotsAvailableAndFree(expectedSlots)) {
             final Map<ExecutionVertexID, LogicalSlot> assignedSlots = new HashMap<>();
 
@@ -234,6 +239,9 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                 }
             }
 
+            LoggerFactory
+                    .getLogger(SlotSharingSlotAllocator.class)
+                    .debug("assignedSlots: " + assignedSlots);
             return Optional.of(ReservedSlots.create(assignedSlots));
         } else {
             return Optional.empty();

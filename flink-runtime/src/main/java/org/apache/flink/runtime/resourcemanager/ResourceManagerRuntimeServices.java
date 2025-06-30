@@ -83,8 +83,12 @@ public class ResourceManagerRuntimeServices {
             ResourceAllocationStrategy strategy =
                     configuration.getSlotManagerConfiguration().getBinpackingStrategy() ?
                             new BinPackingResourceAllocationStrategy(
-                                    SlotManagerUtils.generateTaskManagerTotalResourceProfile(slotManagerConfiguration.getDefaultWorkerResourceSpec()),
-                                    slotManagerConfiguration.getNumSlotsPerWorker())
+                                    SlotManagerUtils.generateTaskManagerTotalResourceProfile(
+                                            slotManagerConfiguration.getDefaultWorkerResourceSpec()),
+                                    slotManagerConfiguration.getNumSlotsPerWorker(),
+                                    slotManagerConfiguration.isEvenlySpreadOutSlots(),
+                                    slotManagerConfiguration.getTaskManagerTimeout(),
+                                    slotManagerConfiguration.getRedundantTaskManagerNum())
                             : new DefaultResourceAllocationStrategy(
                                 SlotManagerUtils.generateTaskManagerTotalResourceProfile(
                                         slotManagerConfiguration.getDefaultWorkerResourceSpec()),

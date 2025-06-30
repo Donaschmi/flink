@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.adaptive.JobGraphJobInformation;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -78,16 +79,25 @@ public class JustinSlotAssigner implements SlotAssigner {
                 if (used.contains(slotInfo.getAllocationId())) {
                     continue;
                 }
-                JobVertexID jobVertexID = group
+                ExecutionVertexID executionVertexID = group
                         .getContainedExecutionVertices()
                         .stream()
                         .findFirst()
-                        .get()
-                        .getJobVertexId();
+                        .get();
+                JobVertexID jobVertexID = executionVertexID.getJobVertexId();
                 ResourceProfile resourceProfile = jobInformation
                         .getVertexInformation(jobVertexID)
                         .getSlotSharingGroup()
                         .getResourceProfile();
+                int targetTM = ((JobGraphJobInformation) jobInformation).getTargetTM(
+                        jobVertexID,
+                        executionVertexID.getSubtaskIndex());
+                if (targetTM != -1) {
+                    resourceProfile = ResourceProfile
+                            .newBuilder(resourceProfile)
+                            .setTargetTM(targetTM)
+                            .build();
+                }
                 LoggerFactory
                         .getLogger(JustinSlotAssigner.class)
                         .debug(jobVertexID + " -> " + resourceProfile);

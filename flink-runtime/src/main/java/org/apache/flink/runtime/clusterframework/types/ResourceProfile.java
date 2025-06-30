@@ -130,7 +130,7 @@ public class ResourceProfile implements Serializable {
     @Nullable // can be null only for UNKNOWN
     private MemorySize operatorsMemory;
 
-    private int targetTM;
+    private Integer targetTM;
 
     // ------------------------------------------------------------------------
 
@@ -429,7 +429,7 @@ public class ResourceProfile implements Serializable {
                     && Objects.equals(managedMemory, that.managedMemory)
                     && Objects.equals(networkMemory, that.networkMemory)
                     && Objects.equals(extendedResources, that.extendedResources)
-                    && targetTM == that.targetTM;
+                    && Objects.equals(targetTM, that.targetTM);
         }
         return false;
     }

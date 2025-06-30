@@ -44,6 +44,8 @@ public class SlotSharingGroup implements java.io.Serializable {
     // Represents resources of all tasks in the group. Default to be UNKNOWN.
     private ResourceProfile resourceProfile = ResourceProfile.UNKNOWN;
 
+    private Integer targetTM = -1;
+
     // --------------------------------------------------------------------------------------------
 
     public void addVertexToGroup(final JobVertexID id) {
@@ -68,6 +70,14 @@ public class SlotSharingGroup implements java.io.Serializable {
 
     public ResourceProfile getResourceProfile() {
         return resourceProfile;
+    }
+
+    public void setTargetTM(int targetTM) {
+        this.targetTM = targetTM;
+    }
+
+    public Integer getTargetTM() {
+        return targetTM;
     }
 
     // ------------------------------------------------------------------------

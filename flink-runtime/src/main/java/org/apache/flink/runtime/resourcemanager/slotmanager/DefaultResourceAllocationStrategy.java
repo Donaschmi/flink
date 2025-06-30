@@ -444,7 +444,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         }
     }
 
-    private interface ResourceMatchingStrategy {
+    protected interface ResourceMatchingStrategy {
 
         int tryFulfilledRequirementWithResource(
                 List<InternalResourceInfo> internalResources,
@@ -453,7 +453,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 JobID jobId);
     }
 
-    private enum AnyMatchingResourceMatchingStrategy implements ResourceMatchingStrategy {
+    protected enum AnyMatchingResourceMatchingStrategy implements ResourceMatchingStrategy {
         INSTANCE;
 
         @Override
@@ -478,7 +478,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         }
     }
 
-    private enum LeastUtilizationResourceMatchingStrategy implements ResourceMatchingStrategy {
+    protected enum LeastUtilizationResourceMatchingStrategy implements ResourceMatchingStrategy {
         INSTANCE;
 
         @Override

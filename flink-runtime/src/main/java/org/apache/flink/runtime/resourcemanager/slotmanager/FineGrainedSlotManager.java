@@ -615,13 +615,16 @@ public class FineGrainedSlotManager implements SlotManager {
      */
     private void checkResourceRequirements() {
         if (!started) {
+            LOG.debug("Fine grained slot manager not started.");
             return;
         }
         Map<JobID, Collection<ResourceRequirement>> missingResources =
                 resourceTracker.getMissingResources();
         if (missingResources.isEmpty()) {
+            LOG.debug("Missing resources is empty.");
             if (resourceAllocator.isSupported()
                     && !taskManagerTracker.getPendingTaskManagers().isEmpty()) {
+                LOG.debug("Getting in the condition.");
                 taskManagerTracker.replaceAllPendingAllocations(Collections.emptyMap());
                 checkResourcesNeedReconcile();
                 declareNeededResourcesWithDelay();
@@ -640,12 +643,14 @@ public class FineGrainedSlotManager implements SlotManager {
         final ResourceAllocationResult result =
                 resourceAllocationStrategy.tryFulfillRequirements(
                         missingResources, taskManagerTracker, this::isBlockedTaskManager);
+        LOG.debug("ResourceAllocationResult : " + result);
 
         // Allocate slots according to the result
         allocateSlotsAccordingTo(result.getAllocationsOnRegisteredResources());
 
         final Set<PendingTaskManagerId> failAllocations;
         if (resourceAllocator.isSupported()) {
+            LOG.debug("Resource allocator is supported.");
             // Allocate task managers according to the result
             failAllocations =
                     allocateTaskManagersAccordingTo(result.getPendingTaskManagersToAllocate());
@@ -657,6 +662,7 @@ public class FineGrainedSlotManager implements SlotManager {
             pendingResourceAllocationResult.keySet().removeAll(failAllocations);
             taskManagerTracker.replaceAllPendingAllocations(pendingResourceAllocationResult);
         } else {
+            LOG.debug("Resource allocator is not supported.");
             failAllocations =
                     result.getPendingTaskManagersToAllocate().stream()
                             .map(PendingTaskManager::getPendingTaskManagerId)
@@ -714,6 +720,7 @@ public class FineGrainedSlotManager implements SlotManager {
         for (Map.Entry<JobID, Map<InstanceID, ResourceCounter>> jobEntry : result.entrySet()) {
             final JobID jobID = jobEntry.getKey();
             for (Map.Entry<InstanceID, ResourceCounter> tmEntry : jobEntry.getValue().entrySet()) {
+                LOG.debug("Alloocate slots according to: " + tmEntry.getKey());
                 final InstanceID instanceID = tmEntry.getKey();
                 for (Map.Entry<ResourceProfile, Integer> slotEntry :
                         tmEntry.getValue().getResourcesWithCount()) {

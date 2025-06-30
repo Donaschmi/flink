@@ -114,6 +114,7 @@ public class DefaultResourceTracker implements ResourceTracker {
 
     @Override
     public Map<JobID, Collection<ResourceRequirement>> getMissingResources() {
+        LOG.debug("Getting missing resources.");
         Map<JobID, Collection<ResourceRequirement>> allMissingResources = new HashMap<>();
         for (Map.Entry<JobID, JobScopedResourceTracker> tracker : trackers.entrySet()) {
             Collection<ResourceRequirement> missingResources =

@@ -917,17 +917,21 @@ public class AdaptiveScheduler
         //            CheckpointType.INCREMENTAL);
         //    checkpointFuture.thenAccept((completedCheckpoint -> {
         //        LOG.info("Checkpoint completed: " + completedCheckpoint.getExternalPointer());
-                updateJustinGraphJobInformation(maybeUpdateVertexParallelismStore.get());
-                declareJustinDesiredResources();
-                state.tryRun(
-                        ResourceListener.class,
-                        ResourceListener::onNewResourceRequirements,
-                        "Current state does not react to desired parallelism changes.");
+            updateJustinGraphJobInformation(
+                    maybeUpdateVertexParallelismStore.get(),
+                    justinResourceRequirements);
+            declareJustinDesiredResources();
+            state.tryRun(
+                    ResourceListener.class,
+                    ResourceListener::onNewResourceRequirements,
+                    "Current state does not react to desired parallelism changes.");
             //}));
         }
     }
 
-    private void updateJustinGraphJobInformation(VertexParallelismStore vertexParallelismStore) {
+    private void updateJustinGraphJobInformation(
+            VertexParallelismStore vertexParallelismStore,
+            JustinResourceRequirements justinResourceRequirements) {
         for (JobVertex v : jobGraph.getVertices()) {
             SlotSharingGroup ssg = new SlotSharingGroup();
             JustinVertexParallelismInfo justinVertexParallelismInfo =
@@ -937,9 +941,11 @@ public class AdaptiveScheduler
             v.setSlotSharingGroup(ssg);
         }
         this.jobInformation = new JobGraphJobInformation(jobGraph, vertexParallelismStore);
-        jobInformation
-                .getSlotSharingGroups()
-                .forEach(ssg -> LOG.info(ssg + "  " + ssg.getResourceProfile()));
+        for (JobVertex v : jobGraph.getVertices()) {
+            this.jobInformation.setTargetTMs(
+                    v.getID(),
+                    justinResourceRequirements.getTargetTMs(v.getID()));
+        }
     }
 
     // ----------------------------------------------------------------
@@ -1083,17 +1089,22 @@ public class AdaptiveScheduler
         }
     }
 
-    private ResourceCounter calculateJustinDesiredResources() {
+    @VisibleForTesting
+    public ResourceCounter calculateJustinDesiredResources() {
         ResourceCounter resourceCounter = ResourceCounter.empty();
 
         if (this.justinResourceRequirements != null) {
             for (JobVertex vertex : jobGraph.getVertices()) {
-                resourceCounter =
-                        resourceCounter.add(
-                                this.justinResourceRequirements.getResourceProfile(vertex.getID()),
-                                this.justinResourceRequirements
-                                        .getParallelism(vertex.getID())
-                                        .getUpperBound());
+                ResourceProfile rp = this.justinResourceRequirements.getResourceProfile(vertex.getID());
+                List<Integer> targetTMs = this.justinResourceRequirements.getTargetTMs(vertex.getID());
+                for (Integer targetTM : targetTMs) {
+                    ResourceProfile newRp = ResourceProfile.newBuilder(rp)
+                            .setTargetTM(targetTM).build();
+                    resourceCounter =
+                            resourceCounter.add(
+                                    newRp,
+                                    1);
+                }
             }
         } else {
             for (JobVertex vertex : jobGraph.getVertices()) {
@@ -1302,6 +1313,7 @@ public class AdaptiveScheduler
             do {
                 try {
                     final LogicalSlot assignedSlot = reservedSlots.getSlotFor(executionVertex.getID());
+                    LOG.debug("assignedSlot: " + assignedSlot);
                     final CompletableFuture<Void> registrationFuture =
                             executionVertex
                                     .getCurrentExecutionAttempt()
@@ -1313,6 +1325,7 @@ public class AdaptiveScheduler
                     executionVertex.tryAssignResource(assignedSlot);
                     assigned = true;
                 } catch (Exception e) {
+                    LOG.error(e.toString());
                     LOG.error(e.getMessage());
                     try {
                         Thread.sleep(1000);

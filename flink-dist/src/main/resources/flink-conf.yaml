@@ -91,7 +91,7 @@ taskmanager.memory.process.size: 1728m
 
 # The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
 
-taskmanager.numberOfTaskSlots: 1
+taskmanager.numberOfTaskSlots: 2
 
 # The parallelism used for programs that did not specify and other parallelism.
 
@@ -99,6 +99,7 @@ parallelism.default: 1
 
 jobmanager.scheduler: adaptive
 
+resourcemanager.binpacking-strategy.enabled: true
 
 # The default file system scheme and authority.
 # 

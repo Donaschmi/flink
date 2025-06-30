@@ -67,6 +67,7 @@ import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexResourceRequirements;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.justin.JustinResourceRequirements;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
@@ -2069,6 +2070,31 @@ public class AdaptiveSchedulerTest {
         scheduler.updateJobResourceRequirements(newJobResourceRequirements2);
         assertThat(scheduler.requestJobResourceRequirements())
                 .isEqualTo(newJobResourceRequirements2);
+    }
+
+    @Test
+    public void testCharonUpdatedResourceRequirements() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+        final Configuration configuration = new Configuration();
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(
+                        jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
+                        .setJobMasterConfiguration(configuration)
+                        .build();
+        ResourceProfile rp = ResourceProfile.newBuilder().setTargetTM(1).setCpuCores(0.5).build();
+        List<Integer> list = new ArrayList<>();
+        list.add(1);
+        list.add(2);
+        final JustinResourceRequirements newJobResourceRequirements =
+                JustinResourceRequirements.newBuilder()
+                        .setParallelismForJobVertex(JOB_VERTEX.getID(), 2, 2, rp, list)
+                        .build();
+        scheduler.updateJustinResourceRequirements(newJobResourceRequirements);
+        assertThat(scheduler.requestJustinResourceRequirements())
+                .isEqualTo(newJobResourceRequirements);
+        ResourceCounter rc = scheduler.calculateJustinDesiredResources();
+        System.out.println(rc);
+
     }
 
     // ---------------------------------------------------------------------------------------------

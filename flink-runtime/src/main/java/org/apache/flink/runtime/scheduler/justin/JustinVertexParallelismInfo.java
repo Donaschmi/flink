@@ -25,6 +25,7 @@ import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.util.Preconditions;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -34,6 +35,7 @@ public class JustinVertexParallelismInfo implements VertexParallelismInformation
     private int parallelism;
     private int maxParallelism;
     private ResourceProfile resourceProfile;
+    private List<Integer> targetTMs;
     private final Function<Integer, Optional<String>> rescaleMaxValidator;
 
     /**
@@ -112,6 +114,10 @@ public class JustinVertexParallelismInfo implements VertexParallelismInformation
 
     public ResourceProfile getResourceProfile() {
         return resourceProfile;
+    }
+
+    public List<Integer> getTargetTMs() {
+        return targetTMs;
     }
 
     @Override

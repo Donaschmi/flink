@@ -180,14 +180,14 @@ public class JustinResourceRequirements implements Serializable {
                 int lowerBound,
                 int upperBound,
                 ResourceProfile resourceProfile,
-                int targetTM) {
+                List<Integer> targetTMs) {
             vertexResources.put(
                     jobVertexId,
                     new JustinVertexResourceRequirements(
                             new JustinVertexResourceRequirements.Parallelism(
                                     lowerBound, upperBound),
                             resourceProfile,
-                            targetTM));
+                            targetTMs));
             return this;
         }
 
@@ -220,6 +220,14 @@ public class JustinResourceRequirements implements Serializable {
                         () ->
                                 new IllegalStateException(
                                         "No requirement set for vertex " + jobVertexId));
+    }
+
+    public List<Integer> getTargetTMs(JobVertexID jobVertexId) {
+        return Optional.ofNullable(vertexResources.get(jobVertexId))
+                .map(JustinVertexResourceRequirements::getTargetTMs)
+                .orElseThrow(() ->
+                        new IllegalStateException(
+                                "No requirement set for vertex " + jobVertexId));
     }
 
     public Set<JobVertexID> getJobVertices() {

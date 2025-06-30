@@ -131,4 +131,14 @@ public class ResourceAllocationResult {
                     allocationsOnPendingResources);
         }
     }
+
+    @Override
+    public String toString() {
+        return "ResourceAllocationResult{" +
+                "unfulfillableJobs=" + unfulfillableJobs +
+                ", allocationsOnRegisteredResources=" + allocationsOnRegisteredResources +
+                ", pendingTaskManagersToAllocate=" + pendingTaskManagersToAllocate +
+                ", allocationsOnPendingResources=" + allocationsOnPendingResources +
+                '}';
+    }
 }

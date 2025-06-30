@@ -31,6 +31,9 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /** {@link JobInformation} created from a {@link JobGraph}. */
 public class JobGraphJobInformation implements JobInformation {
@@ -39,6 +42,8 @@ public class JobGraphJobInformation implements JobInformation {
     private final JobID jobID;
     private final String name;
     private final VertexParallelismStore vertexParallelismStore;
+
+    private final Map<JobVertexID, List<Integer>> targetTmsPerJobVertex = new HashMap<>();
 
     public JobGraphJobInformation(
             JobGraph jobGraph, VertexParallelismStore vertexParallelismStore) {
@@ -85,6 +90,17 @@ public class JobGraphJobInformation implements JobInformation {
 
     public VertexParallelismStore getVertexParallelismStore() {
         return vertexParallelismStore;
+    }
+
+    public void setTargetTMs(JobVertexID jobVertexID, List<Integer> targetTMs) {
+        this.targetTmsPerJobVertex.put(jobVertexID, targetTMs);
+    }
+
+    public int getTargetTM(JobVertexID jobVertexID, int index) {
+        if (!targetTmsPerJobVertex.containsKey(jobVertexID)) {
+            return -1;
+        }
+        return targetTmsPerJobVertex.get(jobVertexID).get(index);
     }
 
     private static final class JobVertexInformation implements JobInformation.VertexInformation {

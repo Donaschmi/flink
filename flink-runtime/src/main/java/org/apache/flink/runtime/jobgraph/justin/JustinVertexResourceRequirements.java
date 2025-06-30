@@ -6,6 +6,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -16,7 +18,7 @@ public class JustinVertexResourceRequirements {
 
     private static final String FIELD_NAME_PARALLELISM = "parallelism";
     private static final String FIELD_NAME_RESOURCE_PROFILE = "resourceProfile";
-    private static final String FIELD_NAME_TARGET_TM = "targetTM";
+    private static final String FIELD_NAME_TARGET_TMS = "targetTMs";
 
     public static class Parallelism implements Serializable {
 
@@ -69,26 +71,27 @@ public class JustinVertexResourceRequirements {
     @JsonProperty(FIELD_NAME_RESOURCE_PROFILE)
     private final ResourceProfile resourceProfile;
 
-    @JsonProperty(FIELD_NAME_TARGET_TM)
-    private final int targetTM;
+    @JsonProperty(FIELD_NAME_TARGET_TMS)
+    private final List<Integer> targetTMs;
 
 
     public JustinVertexResourceRequirements(
             @JsonProperty(FIELD_NAME_PARALLELISM) Parallelism parallelism,
             @JsonProperty(FIELD_NAME_RESOURCE_PROFILE) ResourceProfile resourceProfile
-            ){
+    ) {
         this.parallelism = checkNotNull(parallelism);
         this.resourceProfile = resourceProfile;
-        this.targetTM = -1;
+        this.targetTMs = new ArrayList<>();
     }
 
+    @JsonCreator
     public JustinVertexResourceRequirements(
             @JsonProperty(FIELD_NAME_PARALLELISM) Parallelism parallelism,
             @JsonProperty(FIELD_NAME_RESOURCE_PROFILE) ResourceProfile resourceProfile,
-            @JsonProperty(FIELD_NAME_TARGET_TM) int targetTM) {
+            @JsonProperty(FIELD_NAME_TARGET_TMS) List<Integer> targetTMs) {
         this.parallelism = checkNotNull(parallelism);
         this.resourceProfile = resourceProfile;
-        this.targetTM = targetTM;
+        this.targetTMs = targetTMs;
     }
 
     public Parallelism getParallelism() {
@@ -99,8 +102,8 @@ public class JustinVertexResourceRequirements {
         return resourceProfile;
     }
 
-    public int getTargetTM() {
-        return targetTM;
+    public List<Integer> getTargetTMs() {
+        return targetTMs;
     }
 
     @Override
@@ -128,7 +131,7 @@ public class JustinVertexResourceRequirements {
                 + ", resourceProfile="
                 + resourceProfile
                 + ", targetTM="
-                + targetTM
+                + targetTMs
                 + '}';
     }
 }

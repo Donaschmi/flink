@@ -1287,15 +1287,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         });
     }
 
-    @Override
-    public CompletableFuture<Acknowledge> charon(Map<JobID, CharonResourceRequirements> justinResourceRequirements) {
-        List<CompletableFuture<Acknowledge>> list = new ArrayList<>();
-        justinResourceRequirements.forEach((jobID, justinResourceRequirements1) -> {
-            //list.add(this.updateJustinResourceRequirements(jobID, justinResourceRequirements1));
-        });
-        return CompletableFuture.completedFuture(Acknowledge.get());
-    }
-
     private static void validateMaxParallelism(
             JustinResourceRequirements justinResourceRequirements,
             Map<JobVertexID, Integer> maxParallelismPerJobVertex) {
